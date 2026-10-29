@@ -28,6 +28,7 @@ import { ModifiedBackend } from "metabase/common/components/dnd/ModifiedBackend"
 import { getUserId } from "metabase/current-user";
 import { registerDashboardVisualizations } from "metabase/dashboard/visualizations/register";
 import { initializeInteractiveEmbedding } from "metabase/embedding/interactive-embedding";
+import { initializeForkPlugins } from "metabase/fork";
 import { MetabotProvider } from "metabase/metabot/context";
 import { PLUGIN_APP_INIT_FUNCTIONS } from "metabase/plugins";
 import { MetabaseReduxProvider } from "metabase/redux";
@@ -58,6 +59,7 @@ import { OverlayStackProvider } from "./ui/components/overlays/overlay-stack";
 setBasename(window.MetabaseRoot);
 
 initializePlugins();
+initializeForkPlugins();
 
 type Store = ReturnType<typeof getStore>;
 

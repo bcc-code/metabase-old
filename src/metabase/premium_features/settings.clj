@@ -4,6 +4,7 @@
    [metabase.app-db.core :as mdb]
    [metabase.config.core :as config]
    [metabase.premium-features.defenterprise :refer [defenterprise]]
+   [metabase.premium-features.fork-features :as fork-features]
    [metabase.settings.core :as setting :refer [defsetting]]
    [metabase.util.i18n :refer [deferred-tru]]))
 
@@ -89,8 +90,9 @@
 
 (defn- default-premium-feature-getter [feature]
   (fn []
-    (and config/ee-available?
-         (has-feature? feature))))
+    (or (fork-features/provides? feature)
+        (and config/ee-available?
+             (has-feature? feature)))))
 
 (defmacro define-premium-feature
   "Convenience for generating a [[metabase.settings.models.setting/defsetting]] form for a premium token feature. (The Settings
