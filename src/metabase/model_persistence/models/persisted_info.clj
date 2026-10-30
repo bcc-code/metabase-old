@@ -6,7 +6,7 @@
    [metabase.lib.schema.metadata :as lib.schema.metadata]
    [metabase.model-persistence.db :as model-persistence.db]
    [metabase.models.interface :as mi]
-   [metabase.premium-features.core :refer [defenterprise]]
+   [metabase.premium-features.core :as premium-features :refer [defenterprise]]
    [metabase.query-processor.util :as qp.util]
    [metabase.util :as u]
    [metabase.util.malli :as mu]
@@ -104,14 +104,19 @@
    refreshable with the feature flag disabled."
   metabase-enterprise.cache.config
   []
-  ;; meant to be the same as the enterprise version except that "off" is not honored and is refreshed
-  #{"refreshing" "creating" "persisted" "error" "off"})
+  (if (premium-features/enable-cache-granular-controls?)
+    ;; a model turned off on its own stays off
+    #{"refreshing" "creating" "persisted" "error"}
+    #{"refreshing" "creating" "persisted" "error" "off"}))
 
 (defenterprise prunable-states
-  "States of `persisted_info` records which can be pruned."
+  "States of `persisted_info` records which can be pruned. With :cache-granular-controls that includes models turned
+  off on their own, whose persisted tables are dropped while their records stay, so that nothing turns them back on."
   metabase-enterprise.cache.config
   []
-  #{"deletable"})
+  (if (premium-features/enable-cache-granular-controls?)
+    #{"deletable" "off"}
+    #{"deletable"}))
 
 (mi/define-batched-hydration-method persisted?
   :persisted

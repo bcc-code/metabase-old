@@ -58,14 +58,33 @@
         (t/max boundary invalidated-at)
         boundary))))
 
+(defn invalidated-at-duration
+  "Freshness boundary for a `:duration` strategy: cache entries with `updated_at` older than this are stale. Returns nil
+  when the strategy is missing its `:duration` or `:unit`."
+  [{:keys [duration unit invalidated-at]}]
+  (when (and duration unit)
+    (let [boundary (t/minus (t/offset-date-time) (t/duration (long duration) (keyword unit)))]
+      (if invalidated-at
+        (t/max boundary invalidated-at)
+        boundary))))
+
+(defn invalidated-at-schedule
+  "Freshness boundary for a `:schedule` strategy: cache entries with `updated_at` older than the last time its schedule
+  fired (or the strategy was otherwise invalidated) are stale. Returns nil when that isn't known yet, so that nothing
+  is served from cache until it is."
+  [strategy]
+  (:invalidated-at strategy))
+
 (defenterprise strategy->invalidated-at
   "Freshness boundary timestamp for `strategy`: cache entries with `updated_at` strictly older than this are stale and
-  must be refreshed. Returns nil when nothing can be served from cache for this strategy (e.g. on OSS for a non-`:ttl`
-  strategy). EE overrides this to also handle `:duration` and `:schedule`."
+  must be refreshed. Returns nil when nothing can be served from cache for this strategy."
   metabase-enterprise.cache.strategies
   [strategy]
-  (when (= :ttl (:type strategy))
-    (invalidated-at-ttl strategy)))
+  (case (:type strategy)
+    :ttl      (invalidated-at-ttl strategy)
+    :duration (invalidated-at-duration strategy)
+    :schedule (invalidated-at-schedule strategy)
+    nil))
 
 (def ^:private lease-free-sentinel
   "Substituted (via COALESCE) for a NULL `refresh_started_at` so that 'no refresh in progress' counts as a free lease.

@@ -4,6 +4,7 @@
    [java-time.api :as t]
    [medley.core :as m]
    [metabase.cache.db :as cache.db]
+   [metabase.cache.schedule :as cache.schedule]
    [metabase.events.core :as events]
    [metabase.models.interface :as mi]
    [metabase.permissions.core :as perms]
@@ -126,12 +127,24 @@
                           :authority_level (:collection_authority_level row)
                           :type            (:collection_type row)}))))
 
+(defn- schedule-run-due-at
+  "When the schedule of a `:schedule` CacheConfig `row` fired, if it is due to have fired (its `next_run_at` has
+  passed) but the task that records each run (see [[metabase.cache.task.schedule-invalidation]]) hasn't recorded it
+  yet."
+  [row]
+  (when (and (= :schedule (:strategy row))
+             (cache.schedule/due? (:next_run_at row) (t/offset-date-time)))
+    (:next_run_at row)))
+
 (defn card-strategy
-  "Shapes `row` into strategy for a given `card`."
+  "Shapes `row` into strategy for a given `card`. Results cached before the strategy's `:invalidated-at` are stale:
+  that is the latest of when the config was last invalidated, when the card was, and when the config's schedule last
+  fired."
   [row card]
   (some-> (:strategy (row->config row))
-          (m/assoc-some :invalidated-at (t/max (:invalidated_at row)
-                                               (:cache_invalidated_at card)))))
+          (m/assoc-some :invalidated-at (cache.schedule/latest (:invalidated_at row)
+                                                               (:cache_invalidated_at card)
+                                                               (schedule-run-due-at row)))))
 
 (defn config->row
   "Transform cache config from API form into db storage form."
@@ -165,13 +178,34 @@
    id         :- [:maybe ms/IntGreaterThanOrEqualToZero]]
   (:count (cache.db/cache-config-count-row models collection id)))
 
+(defn- schedule-bookkeeping
+  "The `invalidated_at` and `next_run_at` to store with `data`, a CacheConfig about to replace `current`.
+
+  A `:schedule` strategy needs to know when its schedule runs next. Results cached before it took effect were cached
+  under some other policy, so they are stale from then on, until the schedule fires. Saving the same schedule again
+  keeps both as they are, and other strategies don't use `next_run_at`."
+  [current data now]
+  (let [schedule (get-in data [:config :schedule])]
+    (cond
+      (not= :schedule (keyword (:strategy data)))
+      {:next_run_at nil}
+
+      (and (= :schedule (:strategy current))
+           (= schedule (get-in current [:config :schedule])))
+      {}
+
+      :else
+      {:invalidated_at now
+       :next_run_at    (cache.schedule/next-run-after schedule now)})))
+
 (defn store!
   "Store cache configuration in DB."
   [user-id {:keys [model model_id] :as config}]
   (t2/with-transaction [_tx]
     (let [data    (config->row config)
-          current (cache.db/lock-cache-config model model_id)]
-      (u/prog1 (cache.db/upsert-cache-config! model model_id data)
+          current (cache.db/lock-cache-config model model_id)
+          row     (merge data (schedule-bookkeeping current data (t/offset-date-time)))]
+      (u/prog1 (cache.db/upsert-cache-config! model model_id row)
         (audit-caching-change! user-id <> current data)))))
 
 (defn delete!
@@ -188,18 +222,21 @@
 ;;; Invalidation
 
 (defn- invalidate-cards [databases dashboards questions]
-  (let [card-ids (concat
-                  questions
-                  (when (seq databases)
-                    (cache.db/card-ids-for-databases databases))
-                  (when (seq dashboards)
-                    (cache.db/dashboard-card-ids dashboards)))]
+  (let [card-ids (->> (concat
+                       questions
+                       (when (seq databases)
+                         (cache.db/card-ids-for-databases databases))
+                       (when (seq dashboards)
+                         ;; text and heading cards have no Card
+                         (remove nil? (cache.db/dashboard-card-ids dashboards))))
+                      distinct)]
     (if (empty? card-ids)
       -1
       (cache.db/invalidate-cards! card-ids (t/offset-date-time)))))
 
-(defn- invalidate-cache-configs [databases dashboards questions]
-  (let [model+ids (for [[k vs] [[:database databases]
+(defn- invalidate-cache-configs [roots databases dashboards questions]
+  (let [model+ids (for [[k vs] [[:root roots]
+                                [:database databases]
                                 [:dashboard dashboards]
                                 [:question questions]]
                         v      vs]
@@ -211,8 +248,20 @@
 
 (defn invalidate!
   "Invalidate cache configuration. Accepts lists of ids for different types of models. If `with-overrides?` is passed,
-  then invalidates cache on each individual card suitable for criteria."
-  [{:keys [databases dashboards questions with-overrides?]}]
-  (if with-overrides?
+  then invalidates cache on each individual card suitable for criteria.
+
+  `root?` stands for everything: without `with-overrides?` it invalidates the root (instance-wide) configuration, and
+  with it it clears every cached result, returning how many there were.
+
+  Returns the number of cards or configurations invalidated (or of results cleared), or -1 when nothing matched the
+  criteria."
+  [{:keys [root? databases dashboards questions with-overrides?]}]
+  (cond
+    (and root? with-overrides?)
+    (cache.db/delete-all-query-cache-entries!)
+
+    with-overrides?
     (invalidate-cards databases dashboards questions)
-    (invalidate-cache-configs databases dashboards questions)))
+
+    :else
+    (invalidate-cache-configs (when root? [0]) databases dashboards questions)))

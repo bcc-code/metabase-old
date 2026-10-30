@@ -4,7 +4,6 @@
    [metabase.api.macros :as api.macros]
    [metabase.cache.db :as cache.db]
    [metabase.cache.models.cache-config :as cache-config]
-   [metabase.config.core :as config]
    [metabase.lib.schema :as lib.schema]
    [metabase.lib.schema.common :as lib.schema.common]
    [metabase.models.interface :as mi]
@@ -68,10 +67,9 @@
    [:map {:closed true}
     [:schedule u.cron/CronScheduleString]]])
 
-;;; This is basically the same schema as `:metabase-enterprise.cache.strategies/cache-strategy` except it doesn't have
-;;; the optional `:invalidated-at` keys
 (mr/def ::cache-strategy.ee
-  "Schema for a caching strategy in EE when we have an premium token with `:cache-granular-controls`."
+  "Schema for a caching strategy with granular cache controls (`:cache-granular-controls`), which add the `:duration`
+  and `:schedule` strategies."
   [:multi {:description      (deferred-tru "cache strategy :type must be one of :nocache, :ttl, :duration, :schedule")
            :decode/normalize lib.schema.common/normalize-map-no-kebab-case
            :dispatch         cache-strategy-dispatch
@@ -84,15 +82,24 @@
    [:schedule    ::cache-strategy.ee.schedule]])
 
 (mr/def ::cache-strategy
-  (if config/ee-available?
-    [:multi
-     {:dispatch (fn [_value]
-                  (if (premium-features/has-feature? :cache-granular-controls)
-                    :ee
-                    :oss))}
-     [:ee  ::cache-strategy.ee]
-     [:oss ::cache-strategy.oss]]
-    ::cache-strategy.oss))
+  "A caching strategy as it may be configured. Every strategy needs granular cache controls, which this edition
+  provides without a premium token (see [[metabase.premium-features.fork-features]]), except `:nocache` and `:ttl`."
+  [:multi
+   {:dispatch (fn [_value]
+                (if (premium-features/enable-cache-granular-controls?)
+                  :ee
+                  :oss))}
+   [:ee  ::cache-strategy.ee]
+   [:oss ::cache-strategy.oss]])
+
+(defn- without-unavailable-refresh
+  "`config` with automatic refreshing (preemptive caching) turned off when this instance can't refresh cached results
+  ahead of time, so that the stored config doesn't claim a behavior nothing provides."
+  [config]
+  (cond-> config
+    (and (contains? (:strategy config) :refresh_automatically)
+         (not (premium-features/enable-preemptive-caching?)))
+    (assoc-in [:strategy :refresh_automatically] false)))
 
 (defn- assert-valid-models [model ids premium?]
   (cond
@@ -189,7 +196,7 @@
                                            [:strategy ::cache-strategy]]]
   (assert-valid-models model [model_id] (premium-features/enable-cache-granular-controls?))
   (check-cache-access model model_id)
-  {:id (cache-config/store! api/*current-user-id* config)})
+  {:id (cache-config/store! api/*current-user-id* (without-unavailable-refresh config))})
 
 (api.macros/defendpoint :delete "/" :- :nil
   "Delete cache configurations."
@@ -210,12 +217,17 @@
   supplied).
 
   `&include=overrides` controls whenever you want to invalidate cache for a specific cache configuration without
-  touching all nested configurations, or you want your invalidation to trickle down to every card."
+  touching all nested configurations, or you want your invalidation to trickle down to every card.
+
+  `root=0` stands for the root (instance-wide) configuration, and with `&include=overrides` for every cached result.
+  Only admins can invalidate it."
   [_route-params
-   {:keys [include database dashboard question]}
+   {:keys [include root database dashboard question]}
    :- [:map {:closed true}
        [:include   {:optional true} [:maybe {:description "All cache configuration overrides should invalidate cache too"}
                                      [:= :overrides]]]
+       [:root      {:optional true} [:maybe {:description "The root configuration, whose id is always 0"}
+                                     (ms/QueryVectorOf ms/IntGreaterThanOrEqualToZero)]]
        [:database  {:optional true} [:maybe {:description "A list of database ids"}
                                      (ms/QueryVectorOf ms/IntGreaterThanOrEqualToZero)]]
        [:dashboard {:optional true} [:maybe {:description "A list of dashboard ids"}
@@ -227,13 +239,17 @@
   ;; Require at least one target. Without a filter there is nothing to invalidate, so the request is
   ;; malformed rather than not-found: returning 404 here misled callers into thinking the endpoint
   ;; itself did not exist (see #66499), and a 200 would falsely imply something was invalidated.
-  (when (every? empty? [database dashboard question])
-    (throw (ex-info (tru "At least one of `database`, `dashboard`, or `question` is required.")
+  (when (every? empty? [root database dashboard question])
+    (throw (ex-info (tru "At least one of `root`, `database`, `dashboard`, or `question` is required.")
                     {:status-code 400})))
+  (when (seq root)
+    (assert-valid-models "root" root true)
+    (api/check-superuser))
   (doseq [db-id database] (api/write-check :model/Database db-id))
   (doseq [dashboard-id dashboard] (api/write-check :model/Dashboard dashboard-id))
   (doseq [question-id question] (api/write-check :model/Card question-id))
-  (let [cnt (cache-config/invalidate! {:databases       database
+  (let [cnt (cache-config/invalidate! {:root?           (boolean (seq root))
+                                       :databases       database
                                        :dashboards      dashboard
                                        :questions       question
                                        :with-overrides? (= include :overrides)})]

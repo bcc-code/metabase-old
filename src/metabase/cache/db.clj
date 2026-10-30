@@ -118,11 +118,46 @@
    model-id :- ms/IntGreaterThanOrEqualToZero]
   (t2/select-one :model/CacheConfig :model model :model_id model-id {:for :update}))
 
+(mu/defn cache-configs-for-targets
+  "The CacheConfigs of the `[model model-id]` pairs in `model+ids`, in no particular order."
+  [model+ids :- [:sequential {:min 1} [:tuple :string ms/IntGreaterThanOrEqualToZero]]]
+  (t2/select :model/CacheConfig
+             {:where (into [:or] (for [[model model-id] model+ids]
+                                   [:and
+                                    [:= :model [:auto/param model]]
+                                    [:= :model_id [:auto/param model-id]]]))}))
+
+(mu/defn due-scheduled-cache-configs
+  "The CacheConfigs with a `:schedule` strategy whose next run is unknown, or at or before `now`."
+  [now :- ms/TemporalInstant]
+  (t2/select :model/CacheConfig
+             :strategy :schedule
+             {:where [:or
+                      [:= :next_run_at nil]
+                      [:<= :next_run_at [:auto/param now]]]}))
+
+(mu/defn record-cache-config-schedule-run!
+  "Set `invalidated_at` and `next_run_at` of the CacheConfig with `id`, returning the number updated. Updates the raw
+  table so that `updated_at`, which records changes to the configuration itself, is left alone."
+  [id             :- ms/PositiveInt
+   invalidated-at :- [:maybe ms/TemporalInstant]
+   next-run-at    :- [:maybe ms/TemporalInstant]]
+  (t2/query-one {:update (t2/table-name :model/CacheConfig)
+                 :set    {:invalidated_at invalidated-at
+                          :next_run_at    next-run-at}
+                 :where  [:= :id [:auto/param id]]}))
+
+(mu/defn delete-all-query-cache-entries!
+  "Delete every cached query result, returning the number deleted."
+  []
+  (t2/delete! (t2/table-name :model/QueryCache)))
+
 (mu/defn upsert-cache-config!
   "Insert or replace the CacheConfig for `model` and `model-id` with `data`, returning its ID."
   [model    :- :string
    model-id :- ms/IntGreaterThanOrEqualToZero
-   data     :- (mut/select-keys ::cache.schema/cache-config.update [:model :model_id :strategy :config :refresh_automatically])]
+   data     :- (mut/select-keys ::cache.schema/cache-config.update [:model :model_id :strategy :config :refresh_automatically
+                                                                    :invalidated_at :next_run_at])]
   (app-db/update-or-insert! :model/CacheConfig {:model model :model_id model-id}
                             (constantly data)))
 

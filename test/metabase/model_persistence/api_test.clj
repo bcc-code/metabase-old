@@ -2,6 +2,7 @@
   (:require
    [clojure.test :refer :all]
    [clojurewerkz.quartzite.scheduler :as qs]
+   [metabase.model-persistence.models.persisted-info :as persisted-info]
    [metabase.model-persistence.task.persist-refresh :as task.persist-refresh]
    [metabase.sync.task.sync-databases :as task.sync-databases]
    [metabase.task.impl :as task]
@@ -165,23 +166,17 @@
     (mt/with-temp
       [:model/Card          model     {:database_id (u/the-id db), :type :model}
        :model/PersistedInfo pmodel    {:database_id (u/the-id db), :card_id (u/the-id model)}]
-      (testing "Can't unpersist models without :cache-granular-controls feature flag enabled"
+      ;; this edition provides :cache-granular-controls without a premium token
+      (testing "Can unpersist models without a premium token"
         (mt/with-premium-features #{}
-          (mt/user-http-request :crowberto :post 402 (format "persist/card/%d/unpersist" (u/the-id model)))
-          (is (= "persisted"
-                 (t2/select-one-fn :state :model/PersistedInfo :id (u/the-id pmodel))))))
-      (testing "Can unpersist models with the :cache-granular-controls feature flag enabled"
-        (mt/with-premium-features #{:cache-granular-controls}
           (mt/user-http-request :crowberto :post 204 (format "persist/card/%d/unpersist" (u/the-id model)))
           (is (= "off"
                  (t2/select-one-fn :state :model/PersistedInfo :id (u/the-id pmodel))))))
-      (testing "Can't re-persist models with the :cache-granular-controls feature flag enabled"
+      (testing "A model turned off isn't refreshed, but it is pruned"
+        (is (not (contains? (persisted-info/refreshable-states) "off")))
+        (is (contains? (persisted-info/prunable-states) "off")))
+      (testing "Can re-persist models without a premium token"
         (mt/with-premium-features #{}
-          (mt/user-http-request :crowberto :post 402 (format "persist/card/%d/persist" (u/the-id model)))
-          (is (= "off"
-                 (t2/select-one-fn :state :model/PersistedInfo :id (u/the-id pmodel))))))
-      (testing "Can re-persist models with the :cache-granular-controls feature flag enabled"
-        (mt/with-premium-features #{:cache-granular-controls}
           (mt/user-http-request :crowberto :post 204 (format "persist/card/%d/persist" (u/the-id model)))
           (is (= "creating"
                  (t2/select-one-fn :state :model/PersistedInfo :id (u/the-id pmodel)))))))
