@@ -1,29 +1,25 @@
-import { mockSettings } from "__support__/settings";
-import { createMockState } from "__support__/state";
 import { renderWithProviders, screen } from "__support__/ui";
-import {
-  createMockSettings,
-  createMockTokenFeatures,
-  createMockUser,
-} from "metabase-types/api/mocks";
+import { PLUGIN_REMOTE_SYNC } from "metabase/plugins";
 
 import { RemoteSyncSettingsPage } from "./RemoteSyncSettingsPage";
 
 describe("RemoteSyncSettingsPage", () => {
-  it("should show the remote sync upsell when the feature is off and plan is not Pro", () => {
-    const settings = createMockSettings({
-      "token-features": createMockTokenFeatures({}),
-    });
+  const defaultSettings = PLUGIN_REMOTE_SYNC.RemoteSyncSettings;
 
-    renderWithProviders(<RemoteSyncSettingsPage />, {
-      storeInitialState: createMockState({
-        currentUser: createMockUser({ is_superuser: true }),
-        settings: mockSettings(settings),
-      }),
-    });
+  afterEach(() => {
+    PLUGIN_REMOTE_SYNC.RemoteSyncSettings = defaultSettings;
+  });
 
+  it("renders the remote sync settings of the plugin, without an upsell", () => {
+    PLUGIN_REMOTE_SYNC.RemoteSyncSettings = function RemoteSyncSettings() {
+      return <div>Git sync settings</div>;
+    };
+
+    renderWithProviders(<RemoteSyncSettingsPage />);
+
+    expect(screen.getByText("Git sync settings")).toBeInTheDocument();
     expect(
-      screen.getByText(/Manage your Metabase content in Git/i),
-    ).toBeInTheDocument();
+      screen.queryByText(/Manage your Metabase content in Git/i),
+    ).not.toBeInTheDocument();
   });
 });
