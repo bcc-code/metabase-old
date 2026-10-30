@@ -4,6 +4,7 @@
    [metabase.lib.core :as lib]
    [metabase.lib.metadata :as lib.metadata]
    [metabase.models.interface :as mi]
+   [metabase.permissions.advanced-test-util :as advanced-test-util]
    [metabase.permissions.core :as perms]
    [metabase.permissions.models.data-permissions :as data-perms]
    [metabase.request.session :as session]
@@ -220,7 +221,7 @@
            (mt/with-premium-features #{:advanced-permissions}
              (is (mi/can-write? measure))))
           (testing "but not once the advanced-permissions feature is gone"
-            (mt/with-premium-features #{}
+            (advanced-test-util/without-advanced-permissions
               (is (not (mi/can-write? measure))))))))))
 
 (deftest can-write?-analyst-restricted-test
@@ -327,7 +328,7 @@
                                                         :table_id (mt/id :venues)
                                                         :definition (measure-definition (lib/count))})))))
           (testing "but not once the advanced-permissions feature is gone"
-            (mt/with-premium-features #{}
+            (advanced-test-util/without-advanced-permissions
               (is (false? (mi/can-create? :model/Measure {:name "Test Measure"
                                                           :table_id (mt/id :venues)
                                                           :definition (measure-definition (lib/count))}))))))))))

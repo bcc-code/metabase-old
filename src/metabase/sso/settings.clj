@@ -4,14 +4,17 @@
    [metabase.config.core :as config]
    [metabase.premium-features.core :as premium-features]
    [metabase.settings.core :as setting :refer [defsetting define-multi-setting define-multi-setting-impl]]
+   [metabase.sso.claims :as sso.claims]
    [metabase.startup.core :as startup]
    [metabase.util :as u]
    [metabase.util.http :as u.http]
    [metabase.util.i18n :refer [deferred-tru tru]]
    [metabase.util.json :as json]
-   [metabase.util.string :as u.str])
+   [metabase.util.string :as u.str]
+   [ring.util.codec :as codec])
   (:import
-   (com.unboundid.ldap.sdk DN)))
+   (com.unboundid.ldap.sdk DN)
+   (java.net URI)))
 
 (set! *warn-on-reflection* true)
 
@@ -286,19 +289,466 @@
 (defmethod startup/def-startup-validation! ::oidc-allowed-networks [_]
   (oidc-allowed-networks))
 
+;;;
+;;; Helpers shared by the JWT and OpenID Connect settings
+;;;
+
+(defn- blank->nil
+  "`s` trimmed, or nil when it is blank."
+  [s]
+  (when (string? s)
+    (not-empty (str/trim s))))
+
+(defn- check-http-url!
+  "Throw a 400 unless `url` is an absolute `http://` or `https://` URL. `label` names the field in the message."
+  [url label]
+  (let [^URI uri (try (URI. url) (catch Exception _ nil))]
+    (when-not (and uri
+                   (contains? #{"http" "https"} (some-> (.getScheme uri) u/lower-case-en))
+                   (not (str/blank? (.getHost uri))))
+      (throw (ex-info (tru "{0} must be an absolute URL starting with http:// or https://." label)
+                      {:status-code 400})))))
+
+(defn- group-mappings-from-raw
+  "Read the group mappings setting `setting-key` as a map of the identity provider's group names (strings, exactly as
+  the provider sends them) to vectors of Metabase group IDs."
+  [setting-key]
+  (let [raw (setting/get-raw-value setting-key map? json/decode)]
+    (into {}
+          (map (fn [[group-name group-ids]]
+                 [(u/qualified-name group-name) (vec group-ids)]))
+          raw)))
+
+(defn- set-group-mappings!
+  "Validate and store `new-value` (a map, or its JSON) as the group mappings setting `setting-key`. Keys may arrive as
+  keywords from a decoded API body; they are stored as the strings the identity provider sends."
+  [setting-key new-value]
+  (let [new-value (if (string? new-value) (json/decode new-value) new-value)]
+    (when (and (some? new-value) (not (map? new-value)))
+      (throw (ex-info (tru "Group mappings must be a JSON object of group names to lists of Metabase group IDs.")
+                      {:status-code 400})))
+    (let [normalized (into {}
+                           (map (fn [[group-name group-ids]]
+                                  (let [group-name (u/qualified-name group-name)]
+                                    (when (str/blank? group-name)
+                                      (throw (ex-info (tru "Group names in group mappings can''t be blank.")
+                                                      {:status-code 400})))
+                                    (when-not (and (sequential? group-ids) (every? pos-int? group-ids))
+                                      (throw (ex-info (tru "The Metabase groups for {0} must be a list of group IDs."
+                                                           group-name)
+                                                      {:status-code 400})))
+                                    [group-name (vec (distinct group-ids))])))
+                           new-value)]
+      (setting/set-value-of-type! :json setting-key (not-empty normalized)))))
+
+;;;
+;;; JWT
+;;;
+
+(def ^:private min-jwt-shared-secret-length
+  "RFC 7518 (section 3.2) requires an HMAC key at least as long as the hash: 256 bits for HS256, which is 32 characters
+  of a random hexadecimal or base64 string."
+  32)
+
+(defsetting jwt-identity-provider-uri
+  (deferred-tru "URL of your identity provider''s login page for JWT single sign-on. Metabase sends people there to sign in.")
+  :feature    :sso-jwt
+  :export?    false
+  :encryption :when-encryption-key-set
+  :audit      :getter
+  :setter     (fn [new-value]
+                (let [new-value (blank->nil new-value)]
+                  (when new-value
+                    (check-http-url! new-value (tru "JWT identity provider URI")))
+                  (setting/set-value-of-type! :string :jwt-identity-provider-uri new-value))))
+
+(defsetting jwt-shared-secret
+  (deferred-tru "String used to seed the private key used to validate JWT messages. A hexadecimal-encoded 256-bit key (i.e., a 64-character string) is strongly recommended.")
+  :feature    :sso-jwt
+  :export?    false
+  :sensitive? true
+  :encryption :when-encryption-key-set
+  :setter     (fn [new-value]
+                (let [new-value (blank->nil new-value)]
+                  ;; an admin form that was saved without touching the secret sends back its masked value, which the
+                  ;; string setter below recognises and ignores
+                  (when (and new-value
+                             (not (setting/obfuscated-value? new-value))
+                             (< (count new-value) min-jwt-shared-secret-length))
+                    (throw (ex-info (tru "The JWT signing key must be at least {0} characters long."
+                                         min-jwt-shared-secret-length)
+                                    {:status-code 400})))
+                  (setting/set-value-of-type! :string :jwt-shared-secret new-value))))
+
+(defsetting jwt-attribute-email
+  (deferred-tru "Key to retrieve the JWT user''s email address.")
+  :feature    :sso-jwt
+  :export?    false
+  :default    "email"
+  :encryption :when-encryption-key-set
+  :audit      :getter)
+
+(defsetting jwt-attribute-firstname
+  (deferred-tru "Key to retrieve the JWT user''s first name.")
+  :feature    :sso-jwt
+  :export?    false
+  :default    "first_name"
+  :encryption :when-encryption-key-set
+  :audit      :getter)
+
+(defsetting jwt-attribute-lastname
+  (deferred-tru "Key to retrieve the JWT user''s last name.")
+  :feature    :sso-jwt
+  :export?    false
+  :default    "last_name"
+  :encryption :when-encryption-key-set
+  :audit      :getter)
+
+(defsetting jwt-attribute-groups
+  (deferred-tru "Key to retrieve the JWT user''s groups.")
+  :feature    :sso-jwt
+  :export?    false
+  :default    "groups"
+  :encryption :when-encryption-key-set
+  :audit      :getter)
+
+(defsetting jwt-group-sync
+  (deferred-tru "Enable group membership synchronization with JWT.")
+  :feature :sso-jwt
+  :export? false
+  :type    :boolean
+  :default false
+  :audit   :getter)
+
+(defsetting jwt-group-mappings
+  (deferred-tru "JSON containing JWT to Metabase group mappings.")
+  :feature    :sso-jwt
+  :export?    false
+  :type       :json
+  :cache?     false
+  :default    {}
+  :encryption :when-encryption-key-set
+  :audit      :getter
+  :doc        "JSON object containing JWT to Metabase group mappings, where keys are JWT groups and values are lists of Metabase groups IDs."
+  :getter     (fn [] (group-mappings-from-raw :jwt-group-mappings))
+  :setter     (fn [new-value] (set-group-mappings! :jwt-group-mappings new-value)))
+
+(defsetting jwt-user-attributes
+  (deferred-tru "JWT claims to store as user attributes on every login, separated by commas or line breaks. Write name=claim to store a claim under another name.")
+  :feature    :sso-jwt
+  :export?    false
+  :encryption :when-encryption-key-set
+  :audit      :getter
+  :doc        "Each entry is a claim name, or `name=claim` to store the claim under another attribute name. Claim paths can be namespaced claim names or dotted paths into nested claims. String, number and boolean values are stored as text; lists of them are joined with commas; other values are skipped. The attributes are written to the user on every JWT login, replacing the ones a previous login stored."
+  :setter     (fn [new-value]
+                (let [new-value (blank->nil new-value)]
+                  (sso.claims/parse-attribute-mappings new-value)
+                  (setting/set-value-of-type! :string :jwt-user-attributes new-value))))
+
+(defsetting jwt-user-provisioning-enabled?
+  (deferred-tru "When a user logs in via JWT, create a Metabase account for them automatically if they don''t have one.")
+  :feature :sso-jwt
+  :export? false
+  :type    :boolean
+  :default true
+  :audit   :getter)
+
+(defsetting jwt-configured
+  (deferred-tru "Are the mandatory JWT settings (identity provider URI and signing key) set?")
+  :feature :sso-jwt
+  :export? false
+  :type    :boolean
+  :default false
+  :setter  :none
+  :getter  (fn [] (boolean (and (jwt-identity-provider-uri)
+                                (jwt-shared-secret)))))
+
+(defsetting jwt-enabled
+  (deferred-tru "Is JWT authentication configured and enabled?")
+  :feature    :sso-jwt
+  :export?    false
+  :type       :boolean
+  :default    false
+  :visibility :public
+  :audit      :getter
+  :doc        "When set to true, will enable JWT authentication with the options configured in the MB_JWT_* variables.
+        This is for JWT SSO authentication, and has nothing to do with Static embedding, which is MB_EMBEDDING_SECRET_KEY."
+  :getter     (fn []
+                (and (jwt-configured)
+                     (boolean (setting/get-value-of-type :boolean :jwt-enabled))))
+  :setter     (fn [new-value]
+                (let [new-value (boolean new-value)]
+                  (when (and new-value (not (jwt-configured)))
+                    (throw (ex-info (tru "JWT authentication is not configured. Set the identity provider URI and the signing key first.")
+                                    {:status-code 400})))
+                  (setting/set-value-of-type! :boolean :jwt-enabled new-value))))
+
+;;;
+;;; OpenID Connect
+;;;
+
+(def ^:private reserved-oidc-authorization-params
+  "Authorization request parameters that Metabase sets itself, which the extra parameters can't override."
+  #{"client_id" "code_challenge" "code_challenge_method" "nonce" "redirect_uri" "response_mode" "response_type"
+    "scope" "state"})
+
+(defn parse-oidc-authorization-params
+  "Parse the extra authorization request parameters `s`, written like a URL query string
+  (`audience=https://api.example.com&prompt=login`) or one `name=value` per line, into a sorted map of parameter
+  names to values. Throws a 400 for a malformed pair or a parameter Metabase sets itself."
+  [s]
+  (into (sorted-map)
+        (for [pair  (str/split (or s "") #"[&\r\n]+")
+              :let  [pair (str/trim pair)]
+              :when (seq pair)]
+          (let [[k v]     (str/split pair #"=" 2)
+                param     (some-> k codec/url-decode str/trim)
+                value     (some-> v codec/url-decode str/trim)]
+            (when (or (str/blank? param) (nil? value))
+              (throw (ex-info (tru "Each extra authorization parameter must look like name=value, but got \"{0}\"." pair)
+                              {:status-code 400})))
+            (when (contains? reserved-oidc-authorization-params param)
+              (throw (ex-info (tru "The authorization parameter \"{0}\" is set by Metabase and can''t be overridden." param)
+                              {:status-code 400})))
+            [param value]))))
+
+(defn normalize-oidc-issuer
+  "Trim `issuer` and drop a trailing `/.well-known/openid-configuration`, so an admin can paste either the issuer or the
+  URL of its discovery document. Discovery works with or without a trailing slash on the issuer, and ID tokens are
+  checked against the issuer the discovery document declares, so neither form has to match the provider exactly."
+  [issuer]
+  (some-> (blank->nil issuer)
+          (str/replace #"/\.well-known/openid-configuration/?$" "")
+          blank->nil))
+
+(defn- parse-email-domains
+  "The lower-cased domains in the comma- or whitespace-separated list `s`, without any leading `@`."
+  [s]
+  (into []
+        (comp (map str/trim)
+              (map #(str/replace % #"^@" ""))
+              (remove str/blank?)
+              (map u/lower-case-en)
+              (distinct))
+        (str/split (or s "") #"[,\s]+")))
+
+(defsetting oidc-issuer-uri
+  (deferred-tru "The issuer URI of your OpenID Connect provider. Metabase reads the provider''s endpoints from its discovery document at this address followed by /.well-known/openid-configuration.")
+  :feature    :sso-oidc
+  :export?    false
+  :encryption :when-encryption-key-set
+  :audit      :getter
+  :setter     (fn [new-value]
+                (let [new-value (normalize-oidc-issuer new-value)]
+                  (when new-value
+                    (check-http-url! new-value (tru "Issuer URI")))
+                  (setting/set-value-of-type! :string :oidc-issuer-uri new-value))))
+
+(defsetting oidc-client-id
+  (deferred-tru "The client ID of the application registered for Metabase at your OpenID Connect provider.")
+  :feature    :sso-oidc
+  :export?    false
+  :encryption :when-encryption-key-set
+  :audit      :getter
+  :setter     (fn [new-value]
+                (setting/set-value-of-type! :string :oidc-client-id (blank->nil new-value))))
+
+(defsetting oidc-client-secret
+  (deferred-tru "The client secret of the application registered for Metabase at your OpenID Connect provider.")
+  :feature    :sso-oidc
+  :export?    false
+  :sensitive? true
+  :encryption :when-encryption-key-set
+  :setter     (fn [new-value]
+                (setting/set-value-of-type! :string :oidc-client-secret (blank->nil new-value))))
+
+(defsetting oidc-scopes
+  (deferred-tru "The scopes Metabase requests from your OpenID Connect provider, separated by spaces. The openid scope is always requested.")
+  :feature    :sso-oidc
+  :export?    false
+  :default    "openid email profile"
+  :encryption :when-encryption-key-set
+  :audit      :getter
+  :setter     (fn [new-value]
+                (setting/set-value-of-type! :string :oidc-scopes
+                                            (some->> (blank->nil new-value)
+                                                     (#(str/split % #"[,\s]+"))
+                                                     (remove str/blank?)
+                                                     distinct
+                                                     (str/join " ")))))
+
+(defn oidc-scope-list
+  "The scopes to request in an authorization request: those of the `oidc-scopes` setting, with `openid` first."
+  []
+  (into ["openid"]
+        (comp (remove str/blank?)
+              (remove #{"openid"})
+              (distinct))
+        (str/split (or (setting/get :oidc-scopes) "") #"[,\s]+")))
+
+(defsetting oidc-authorization-params
+  (deferred-tru "Extra parameters to add to the authorization request, written like a URL query string, for example audience=https://api.example.com&prompt=login.")
+  :feature    :sso-oidc
+  :export?    false
+  :encryption :when-encryption-key-set
+  :audit      :getter
+  :setter     (fn [new-value]
+                (let [new-value (blank->nil new-value)]
+                  ;; refuse anything the login flow could not use, so a typo shows up when it is saved
+                  (parse-oidc-authorization-params new-value)
+                  (setting/set-value-of-type! :string :oidc-authorization-params new-value))))
+
+(defsetting oidc-login-prompt
+  (deferred-tru "The label of the OpenID Connect button on the sign-in page, for example \"Sign in with Example\".")
+  :feature    :sso-oidc
+  :export?    false
+  :visibility :public
+  :encryption :when-encryption-key-set
+  :audit      :getter
+  :setter     (fn [new-value]
+                (setting/set-value-of-type! :string :oidc-login-prompt (blank->nil new-value))))
+
+(defsetting oidc-attribute-email
+  (deferred-tru "The ID token or userinfo claim that holds the user''s email address. Use the full name of a namespaced claim, or a dotted path for a nested one.")
+  :feature    :sso-oidc
+  :export?    false
+  :default    "email"
+  :encryption :when-encryption-key-set
+  :audit      :getter)
+
+(defsetting oidc-attribute-firstname
+  (deferred-tru "The ID token or userinfo claim that holds the user''s first name.")
+  :feature    :sso-oidc
+  :export?    false
+  :default    "given_name"
+  :encryption :when-encryption-key-set
+  :audit      :getter)
+
+(defsetting oidc-attribute-lastname
+  (deferred-tru "The ID token or userinfo claim that holds the user''s last name.")
+  :feature    :sso-oidc
+  :export?    false
+  :default    "family_name"
+  :encryption :when-encryption-key-set
+  :audit      :getter)
+
+(defsetting oidc-attribute-groups
+  (deferred-tru "The ID token or userinfo claim that holds the user''s groups or roles, used for group mapping.")
+  :feature    :sso-oidc
+  :export?    false
+  :encryption :when-encryption-key-set
+  :audit      :getter)
+
+(defsetting oidc-group-sync
+  (deferred-tru "Enable group membership synchronization with OpenID Connect.")
+  :feature :sso-oidc
+  :export? false
+  :type    :boolean
+  :default false
+  :audit   :getter)
+
+(defsetting oidc-group-mappings
+  (deferred-tru "JSON containing OpenID Connect to Metabase group mappings.")
+  :feature    :sso-oidc
+  :export?    false
+  :type       :json
+  :cache?     false
+  :default    {}
+  :encryption :when-encryption-key-set
+  :audit      :getter
+  :doc        "JSON object whose keys are the group names your provider sends in the groups claim and whose values are lists of Metabase group IDs."
+  :getter     (fn [] (group-mappings-from-raw :oidc-group-mappings))
+  :setter     (fn [new-value] (set-group-mappings! :oidc-group-mappings new-value)))
+
+(defsetting oidc-user-attributes
+  (deferred-tru "ID token or userinfo claims to store as user attributes on every login, separated by commas or line breaks. Write name=claim to store a claim under another name.")
+  :feature    :sso-oidc
+  :export?    false
+  :encryption :when-encryption-key-set
+  :audit      :getter
+  :doc        "Each entry is a claim name, or `name=claim` to store the claim under another attribute name. Claim paths can be namespaced claim names or dotted paths into nested claims. String, number and boolean values are stored as text; lists of them are joined with commas; other values are skipped. The attributes are written to the user on every OpenID Connect login, replacing the ones a previous login stored."
+  :setter     (fn [new-value]
+                (let [new-value (blank->nil new-value)]
+                  (sso.claims/parse-attribute-mappings new-value)
+                  (setting/set-value-of-type! :string :oidc-user-attributes new-value))))
+
+(defsetting oidc-user-provisioning-enabled?
+  (deferred-tru "When a user logs in via OpenID Connect, create a Metabase account for them automatically if they don''t have one.")
+  :feature :sso-oidc
+  :export? false
+  :type    :boolean
+  :default true
+  :audit   :getter)
+
+(defsetting oidc-allowed-email-domains
+  (deferred-tru "When set, only people whose email address is from one of these comma-separated domains can sign in with OpenID Connect.")
+  :feature    :sso-oidc
+  :export?    false
+  :encryption :when-encryption-key-set
+  :audit      :getter
+  :setter     (fn [new-value]
+                (let [domains (parse-email-domains new-value)]
+                  (when-let [bad (first (remove #(re-matches #"[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+" %)
+                                                domains))]
+                    (throw (ex-info (tru "{0} is not a valid email domain." bad)
+                                    {:status-code 400})))
+                  (setting/set-value-of-type! :string :oidc-allowed-email-domains
+                                              (some->> (seq domains) (str/join ","))))))
+
+(defn oidc-email-domain-allowed?
+  "Whether `email` may sign in with OpenID Connect under the `oidc-allowed-email-domains` setting. Every address is
+  allowed when the setting is empty."
+  [email]
+  (let [domains (parse-email-domains (setting/get :oidc-allowed-email-domains))]
+    (boolean
+     (or (empty? domains)
+         (and (string? email)
+              (some #(u/email-in-domain? (u/lower-case-en email) %) domains))))))
+
+(defsetting oidc-configured
+  (deferred-tru "Are the mandatory OpenID Connect settings (issuer URI, client ID and client secret) set?")
+  :feature :sso-oidc
+  :export? false
+  :type    :boolean
+  :default false
+  :setter  :none
+  :getter  (fn [] (boolean (and (oidc-issuer-uri)
+                                (oidc-client-id)
+                                (oidc-client-secret)))))
+
+(defsetting oidc-enabled
+  (deferred-tru "Is OpenID Connect authentication configured and enabled?")
+  :feature    :sso-oidc
+  :export?    false
+  :type       :boolean
+  :default    false
+  :visibility :public
+  :audit      :getter
+  :getter     (fn []
+                (and (oidc-configured)
+                     (boolean (setting/get-value-of-type :boolean :oidc-enabled))))
+  :setter     (fn [new-value]
+                (let [new-value (boolean new-value)]
+                  (when (and new-value (not (oidc-configured)))
+                    (throw (ex-info (tru "OpenID Connect is not configured. Set the issuer URI, client ID and client secret first.")
+                                    {:status-code 400})))
+                  (setting/set-value-of-type! :boolean :oidc-enabled new-value))))
+
 (defn- ee-sso-configured? []
   (when config/ee-available?
-    (or (setting/get :other-sso-enabled?)
-        (setting/get :oidc-enabled))))
+    (setting/get :other-sso-enabled?)))
 
 (defn sso-enabled?
   "Any SSO provider is configured and enabled"
   []
-  (or (google-auth-enabled)
-      ;; read by keyword the way `ee-sso-configured?` above does: `ldap-enabled` is defined in
-      ;; [[metabase.sso.ldap.settings]], which this namespace cannot require
-      (setting/get :ldap-enabled)
-      (ee-sso-configured?)))
+  (boolean
+   (or (google-auth-enabled)
+       ;; read by keyword: `ldap-enabled` is defined in [[metabase.sso.ldap.settings]], which this namespace cannot
+       ;; require
+       (setting/get :ldap-enabled)
+       (jwt-enabled)
+       (oidc-enabled)
+       (ee-sso-configured?))))
 
 (defn sso-source-enabled?
   "Returns true if the given SSO source's authentication provider is currently enabled.
@@ -309,14 +759,14 @@
    (case (keyword sso-source)
      :google (google-auth-enabled)
      :ldap   (setting/get :ldap-enabled)
+     :jwt    (jwt-enabled)
+     :oidc   (oidc-enabled)
      ;; Enterprise SSO providers: setting/get respects the :feature flag on each
      ;; setting — returning the default (false) when the feature is unlicensed (e.g.,
      ;; after license downgrade), so users aren't locked out of password reset.
      ;; Exception: :scim-enabled has no :feature guard, so it returns the stored value
      ;; regardless of license status.
      :saml   (setting/get :saml-enabled)
-     :jwt    (setting/get :jwt-enabled)
-     :oidc   (setting/get :oidc-enabled)
      :slack  (setting/get :slack-connect-enabled)
      :scim   (setting/get :scim-enabled)
      ;; Unknown sso_source -- treat as disabled to allow password reset
@@ -349,3 +799,12 @@
 (define-multi-setting-impl send-new-sso-user-admin-email? :oss
   :getter (constantly true)
   :setter :none)
+
+;; This fork provides SSO (JWT and OpenID Connect) without a premium token, so `enable-any-sso?` is true and the
+;; setting dispatches here: an admin can turn the notification off. Unset, it stays on, like the OSS implementation.
+(define-multi-setting-impl send-new-sso-user-admin-email? :ee
+  :getter (fn []
+            (let [value (setting/get-value-of-type :boolean :send-new-sso-user-admin-email?)]
+              (if (some? value) value true)))
+  :setter (fn [new-value]
+            (setting/set-value-of-type! :boolean :send-new-sso-user-admin-email? (some-> new-value boolean))))

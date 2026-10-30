@@ -9,7 +9,12 @@ import {
 import { mockSettings } from "__support__/settings";
 import { createMockState } from "__support__/state";
 import { renderWithProviders, screen, waitFor, within } from "__support__/ui";
-import { PLUGIN_DATA_APPS, reinitialize } from "metabase/plugins";
+import {
+  PLUGIN_DATA_APPS,
+  PLUGIN_MONITOR,
+  PLUGIN_MONITOR_TOOLS,
+  reinitialize,
+} from "metabase/plugins";
 import { Route } from "metabase/router";
 import * as Urls from "metabase/urls";
 import type { TokenFeatures } from "metabase-types/api";
@@ -30,8 +35,30 @@ const { trackMonitorSectionClicked } = jest.requireMock(
   "metabase/common/monitor/analytics",
 );
 
+/** The token features behind every Monitor section that needs one. */
+const ALL_SECTION_FEATURES: Partial<TokenFeatures> = {
+  dependencies: true,
+  content_diagnostics: true,
+  audit_app: true,
+  "session-management": true,
+};
+
+/** What the monitor plugins set on an instance that provides every section. */
+function enableAllSectionPlugins() {
+  PLUGIN_MONITOR.isDependencyDiagnosticsEnabled = true;
+  PLUGIN_MONITOR.isContentDiagnosticsEnabled = true;
+  PLUGIN_MONITOR.isSessionManagementEnabled = true;
+  PLUGIN_MONITOR.isApiKeyUsageEnabled = true;
+  PLUGIN_MONITOR_TOOLS.COMPONENT = () => null;
+}
+
 interface SetupOpts {
   isNavbarOpened?: boolean;
+  /**
+   * Turns on the plugins and token features of every optional section. Token
+   * features passed in `tokenFeatures` take precedence.
+   */
+  hasAllSections?: boolean;
   tokenFeatures?: Partial<TokenFeatures>;
   aiFeaturesEnabled?: boolean;
   isConfigured?: boolean;
@@ -82,7 +109,8 @@ function TestSidebarToggle({ onRender }: { onRender: () => void }) {
 
 const setup = ({
   isNavbarOpened = true,
-  tokenFeatures,
+  hasAllSections = true,
+  tokenFeatures: tokenFeatureOverrides,
   aiFeaturesEnabled = true,
   isConfigured = true,
   mcpEnabled = true,
@@ -92,6 +120,13 @@ const setup = ({
   children = <div data-testid="content">{"Content"}</div>,
 }: SetupOpts = {}) => {
   PLUGIN_DATA_APPS.isEnabled = hasDataApps;
+  if (hasAllSections) {
+    enableAllSectionPlugins();
+  }
+  const tokenFeatures = {
+    ...(hasAllSections ? ALL_SECTION_FEATURES : {}),
+    ...tokenFeatureOverrides,
+  };
   const settings = mockSettings({
     "token-features": createMockTokenFeatures(tokenFeatures),
     "ai-features-enabled?": aiFeaturesEnabled,
@@ -137,6 +172,52 @@ const LOGS_AND_ACTIVITY_GROUP = "Logs and activity";
 describe("MonitorLayout", () => {
   afterEach(() => {
     reinitialize();
+  });
+
+  it("lists only the sections an instance without paid monitoring features provides", async () => {
+    setup({ hasAllSections: false });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("monitor-nav")).toBeInTheDocument();
+    });
+
+    [
+      "Alerts management",
+      "Background tasks",
+      "Scheduled jobs",
+      "Application logs",
+      "Model persistence log",
+    ].forEach((name) => {
+      expect(screen.getByRole("link", { name })).toBeInTheDocument();
+    });
+    [
+      "Dependency diagnostics",
+      "Content diagnostics",
+      "Erroring questions",
+      "Session management",
+      "API key usage",
+    ].forEach((name) => {
+      expect(screen.queryByRole("link", { name })).not.toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("upsell-gem")).not.toBeInTheDocument();
+  });
+
+  it("does not list sections whose plugin is missing, whatever the token says", async () => {
+    setup({ hasAllSections: false, tokenFeatures: ALL_SECTION_FEATURES });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("monitor-nav")).toBeInTheDocument();
+    });
+
+    [
+      "Dependency diagnostics",
+      "Content diagnostics",
+      "Erroring questions",
+      "Session management",
+      "API key usage",
+    ].forEach((name) => {
+      expect(screen.queryByRole("link", { name })).not.toBeInTheDocument();
+    });
   });
 
   it("groups the sections under static headings with a link for each Monitor section", async () => {
@@ -482,102 +563,57 @@ describe("MonitorLayout", () => {
     },
   );
 
-  const getTabGem = (name: string) =>
-    within(screen.getByRole("link", { name })).queryByTestId("upsell-gem");
-
-  it("gates only Erroring questions when audit_app is unavailable", async () => {
-    setup({
-      tokenFeatures: {
-        dependencies: true,
-        content_diagnostics: true,
-        audit_app: false,
-      },
-    });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("monitor-nav")).toBeInTheDocument();
-    });
-
-    expect(getTabGem("Erroring questions")).toBeInTheDocument();
-    expect(getTabGem("Dependency diagnostics")).not.toBeInTheDocument();
-    expect(getTabGem("Content diagnostics")).not.toBeInTheDocument();
-  });
-
-  it("gates only Dependency diagnostics when dependencies is unavailable", async () => {
-    setup({
-      tokenFeatures: {
-        dependencies: false,
-        content_diagnostics: true,
-        audit_app: true,
-      },
-    });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("monitor-nav")).toBeInTheDocument();
-    });
-
-    expect(getTabGem("Dependency diagnostics")).toBeInTheDocument();
-    expect(getTabGem("Content diagnostics")).not.toBeInTheDocument();
-    expect(getTabGem("Erroring questions")).not.toBeInTheDocument();
-  });
-
-  it("gates only Content diagnostics when content_diagnostics is unavailable", async () => {
-    setup({
-      tokenFeatures: {
-        dependencies: true,
-        content_diagnostics: false,
-        audit_app: true,
-      },
-    });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("monitor-nav")).toBeInTheDocument();
-    });
-
-    expect(getTabGem("Dependency diagnostics")).not.toBeInTheDocument();
-    expect(getTabGem("Content diagnostics")).toBeInTheDocument();
-    expect(getTabGem("Erroring questions")).not.toBeInTheDocument();
-  });
-
-  it("gates none of the token-feature tabs when all features are available", async () => {
-    setup({
-      tokenFeatures: {
-        dependencies: true,
-        content_diagnostics: true,
-        audit_app: true,
-      },
-    });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("monitor-nav")).toBeInTheDocument();
-    });
-
-    expect(getTabGem("Dependency diagnostics")).not.toBeInTheDocument();
-    expect(getTabGem("Content diagnostics")).not.toBeInTheDocument();
-    expect(getTabGem("Erroring questions")).not.toBeInTheDocument();
-  });
-
   it.each([
     {
-      expectation:
-        "gates Session management without the session-management feature",
-      hasFeature: false,
-      isGated: true,
+      feature: "audit_app",
+      hidden: ["Erroring questions", "API key usage"],
+      shown: ["Dependency diagnostics", "Content diagnostics"],
     },
     {
-      expectation:
-        "does not gate Session management with the session-management feature",
-      hasFeature: true,
-      isGated: false,
+      feature: "dependencies",
+      hidden: ["Dependency diagnostics"],
+      shown: ["Content diagnostics", "Erroring questions"],
     },
-  ])("$expectation", async ({ hasFeature, isGated }) => {
-    setup({ tokenFeatures: { "session-management": hasFeature } });
+    {
+      feature: "content_diagnostics",
+      hidden: ["Content diagnostics"],
+      shown: ["Dependency diagnostics", "Erroring questions"],
+    },
+    {
+      feature: "session-management",
+      hidden: ["Session management"],
+      shown: ["Dependency diagnostics", "Erroring questions"],
+    },
+  ] as const)(
+    "hides only the sections that need $feature when it is unavailable",
+    async ({ feature, hidden, shown }) => {
+      setup({ tokenFeatures: { [feature]: false } });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("monitor-nav")).toBeInTheDocument();
+      });
+
+      hidden.forEach((name) => {
+        expect(screen.queryByRole("link", { name })).not.toBeInTheDocument();
+      });
+      shown.forEach((name) => {
+        expect(screen.getByRole("link", { name })).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId("upsell-gem")).not.toBeInTheDocument();
+    },
+  );
+
+  it("shows every section without an upsell gem when all features are available", async () => {
+    setup({ tokenFeatures: { ai_controls: true } });
 
     await waitFor(() => {
       expect(screen.getByTestId("monitor-nav")).toBeInTheDocument();
     });
 
-    expect(getTabGem("Session management") !== null).toBe(isGated);
+    expect(
+      screen.getByRole("link", { name: "Session management" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("upsell-gem")).not.toBeInTheDocument();
   });
 
   const AI_AUDITING_GROUP = "AI Auditing";
@@ -596,7 +632,7 @@ describe("MonitorLayout", () => {
       "href",
       Urls.monitorAiAuditingUsage(),
     );
-    expect(getTabGem("Usage stats")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("upsell-gem")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Conversations" })).toHaveAttribute(
       "href",
       Urls.monitorAiAuditingConversations(),
@@ -630,20 +666,16 @@ describe("MonitorLayout", () => {
     ).toBeInTheDocument();
   });
 
-  it("gates Usage stats and hides Conversations when ai_controls is unavailable", async () => {
+  it("hides Usage stats and Conversations when ai_controls is unavailable", async () => {
     setup({ tokenFeatures: { audit_app: true, ai_controls: false } });
 
     await waitFor(() => {
       expect(screen.getByTestId("monitor-nav")).toBeInTheDocument();
     });
 
-    expect(getTabGem("Usage stats")).toBeInTheDocument();
     expect(
-      within(screen.getByRole("link", { name: "Usage stats" })).getByRole(
-        "img",
-        { name: "lineandbar icon" },
-      ),
-    ).toBeInTheDocument();
+      screen.queryByRole("link", { name: "Usage stats" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "Conversations" }),
     ).not.toBeInTheDocument();
@@ -651,7 +683,7 @@ describe("MonitorLayout", () => {
       "href",
       Urls.monitorAiAuditingCli(),
     );
-    expect(getTabGem("CLI analytics")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("upsell-gem")).not.toBeInTheDocument();
   });
 
   it("hides the whole AI Auditing group when audit_app is unavailable", async () => {

@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import { t } from "ttag";
 
-import { getIcon, renderWithProviders } from "__support__/ui";
+import { renderWithProviders } from "__support__/ui";
 import { createMockParameter } from "metabase-types/api/mocks";
 
 import DefaultParametersSection from "./DefaultParametersSection";
@@ -29,9 +29,10 @@ describe("DefaultParametersSection", () => {
         "If a dashboard filter has a default value, it'll be applied when your subscription is sent.",
       ),
     ).toBeInTheDocument();
-    // Check for info icon tooltip text
-    expect(screen.getByRole("img", { name: /info icon/i })).toBeInTheDocument();
-    expect(getIcon("info")).toBeInTheDocument();
+    // No info icon advertising per-subscription filter values on paid plans
+    expect(
+      screen.queryByRole("img", { name: /info icon/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("should render a simple text parameter with a default value", () => {

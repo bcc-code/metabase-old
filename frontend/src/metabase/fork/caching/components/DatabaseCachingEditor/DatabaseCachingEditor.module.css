@@ -1,0 +1,40 @@
+.layout {
+  overflow: hidden;
+  min-height: 0;
+  flex: 1;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 2px solid var(--mb-color-border-neutral);
+  border-radius: 1rem;
+  background-color: var(--mb-color-background_page-primary);
+}
+
+.scrollable {
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+}
+
+.targetRow {
+  display: block;
+  width: 100%;
+  padding: var(--mantine-spacing-md) var(--mantine-spacing-lg);
+  border-radius: var(--mantine-radius-md);
+
+  &:hover {
+    background-color: var(--mb-color-background_surface-hover);
+  }
+
+  &[aria-pressed="true"] {
+    background-color: var(--mb-color-background_surface-selected);
+  }
+}
+
+.footer {
+  border-top: 1px solid var(--mb-color-border-neutral);
+}

@@ -3,12 +3,9 @@ import { t } from "ttag";
 
 import { useListDatabasesQuery } from "metabase/api";
 import { QuestionPickerModal } from "metabase/common/components/Pickers";
-import { UpsellGem } from "metabase/common/components/upsells/components/UpsellGem";
 import { useHasTokenFeature } from "metabase/common/hooks";
-import { useSelector } from "metabase/redux";
 import { useNavigate } from "metabase/router";
 import { useTransformPermissions } from "metabase/transforms/hooks/use-transform-permissions";
-import { getShouldShowPythonTransformsUpsell } from "metabase/transforms/selectors";
 import { Button, Center, Icon, Loader, Menu, Tooltip } from "metabase/ui";
 import * as Urls from "metabase/urls";
 
@@ -27,23 +24,15 @@ export const CreateTransformMenu = () => {
   ] = useDisclosure();
 
   const hasPythonTransformsFeature = useHasTokenFeature("transforms-python");
-  const shouldShowPythonTransformsUpsell = useSelector(
-    getShouldShowPythonTransformsUpsell,
-  );
 
   const { data: databases, isLoading } = useListDatabasesQuery({
     include_analytics: true,
   });
-  const shouldShowPythonScriptOption =
-    hasPythonTransformsFeature || shouldShowPythonTransformsUpsell;
   const { remoteSyncReadOnly } = useTransformPermissions();
 
   const handlePythonClick = () => {
-    navigate(Urls.newPythonTransform()); // Route will show upsell modal if feature is not enabled
-
-    if (hasPythonTransformsFeature) {
-      trackTransformCreate({ creationType: "python" });
-    }
+    trackTransformCreate({ creationType: "python" });
+    navigate(Urls.newPythonTransform());
   };
 
   if (remoteSyncReadOnly) {
@@ -104,12 +93,9 @@ export const CreateTransformMenu = () => {
                 {t`SQL query`}
               </Menu.Item>
 
-              {shouldShowPythonScriptOption && (
+              {hasPythonTransformsFeature && (
                 <Menu.Item
                   leftSection={<Icon name="code_block" />}
-                  rightSection={
-                    !hasPythonTransformsFeature ? <UpsellGem size={14} /> : null
-                  }
                   onClick={handlePythonClick}
                 >
                   {t`Python script`}

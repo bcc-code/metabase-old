@@ -99,8 +99,8 @@ export function getEmbeddingHubRoutes() {
           {getAdminPermissionsRoutes()}
         </Route>
 
-        {/* Null on OSS, and on EE assigned during plugin init. With no child
-            routes the page still renders its own upsell. */}
+        {/* Null on OSS, and on EE assigned during plugin init. Without the
+            tenants feature the page renders NotFound. */}
         <Route path="tenancy" lazy={embeddingHubTenancyPage}>
           {PLUGIN_TENANTS.tenantsRoutes}
         </Route>

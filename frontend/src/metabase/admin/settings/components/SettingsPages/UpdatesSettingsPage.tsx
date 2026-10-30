@@ -1,7 +1,6 @@
 import cx from "classnames";
 import { t } from "ttag";
 
-import { UpsellHostingBanner } from "metabase/admin/upsells";
 import { NotFound } from "metabase/common/components/ErrorPages";
 import CS from "metabase/css/core/index.css";
 import { useSetting } from "metabase/settings";
@@ -41,7 +40,6 @@ export function UpdatesSettingsPage() {
         )}
         <NewVersionInfo />
       </SettingsSection>
-      <UpsellHostingBanner location="settings-updates-migrate_to_cloud" />
     </SettingsPageWrapper>
   );
 }

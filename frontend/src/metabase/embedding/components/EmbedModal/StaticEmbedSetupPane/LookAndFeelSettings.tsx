@@ -3,7 +3,6 @@ import { match } from "ts-pattern";
 import { jt, t } from "ttag";
 
 import { ExternalLink } from "metabase/common/components/ExternalLink";
-import { UpsellMetabaseBanner } from "metabase/common/components/upsells/UpsellMetabaseBanner";
 import { useDocsUrl } from "metabase/common/hooks";
 import type {
   DisplayTheme,
@@ -11,11 +10,9 @@ import type {
   EmbeddingDisplayOptions,
 } from "metabase/embedding/types";
 import { useSelector } from "metabase/redux";
-import { getUpgradeUrl } from "metabase/selectors/settings";
 import { getCanWhitelabel } from "metabase/selectors/whitelabel";
 import { getSetting } from "metabase/settings";
 import {
-  Divider,
   SegmentedControl,
   type SegmentedControlItem,
   Select,
@@ -67,12 +64,6 @@ export const LookAndFeelSettings = ({
       utm_content: "static-embed-settings-look-and-feel",
     },
   });
-  const upgradePageUrl = useSelector((state) =>
-    getUpgradeUrl(state, {
-      utm_campaign: "embedding-static-font",
-      utm_content: "static-embed-settings-look-and-feel",
-    }),
-  );
   const canWhitelabel = useSelector(getCanWhitelabel);
   const availableFonts = useSelector((state) =>
     getSetting(state, "available-fonts"),
@@ -80,136 +71,118 @@ export const LookAndFeelSettings = ({
   const isDashboard = resourceType === "dashboard";
 
   return (
-    <>
-      <StaticEmbedSetupPaneSettingsContentSection
-        title={t`Customizing look and feel`}
-      >
-        <Stack gap="1rem">
-          <Text>{jt`These options require changing the server code. You can play around with and preview the options here. Check out the ${(
-            <ExternalLink
-              key="doc"
-              href={docsUrl}
-            >{t`documentation`}</ExternalLink>
-          )} for more.`}</Text>
+    <StaticEmbedSetupPaneSettingsContentSection
+      title={t`Customizing look and feel`}
+    >
+      <Stack gap="1rem">
+        <Text>{jt`These options require changing the server code. You can play around with and preview the options here. Check out the ${(
+          <ExternalLink
+            key="doc"
+            href={docsUrl}
+          >{t`documentation`}</ExternalLink>
+        )} for more.`}</Text>
 
-          {canWhitelabel ? (
-            <Select
-              label={
-                <Text fw="bold" mb="0.25rem" lh="1rem">
-                  {t`Font`}
-                </Text>
-              }
-              value={displayOptions.font}
-              data={[
-                {
-                  label: t`Use instance font`,
-                  value: "",
-                },
-                ...(availableFonts?.map((font) => ({
-                  label: font,
-                  value: font,
-                })) ?? []),
-              ]}
-              onChange={(value) => {
-                onChangeDisplayOptions({
-                  ...displayOptions,
-                  font: value,
-                });
-              }}
+        {canWhitelabel && (
+          <Select
+            label={
+              <Text fw="bold" mb="0.25rem" lh="1rem">
+                {t`Font`}
+              </Text>
+            }
+            value={displayOptions.font}
+            data={[
+              {
+                label: t`Use instance font`,
+                value: "",
+              },
+              ...(availableFonts?.map((font) => ({
+                label: font,
+                value: font,
+              })) ?? []),
+            ]}
+            onChange={(value) => {
+              onChangeDisplayOptions({
+                ...displayOptions,
+                font: value,
+              });
+            }}
+          />
+        )}
+
+        <DisplayOptionSection title={t`Theme`}>
+          <SegmentedControl
+            value={displayOptions.theme ?? undefined}
+            data={THEME_OPTIONS}
+            fullWidth
+            onChange={(value) => {
+              onChangeDisplayOptions({
+                ...displayOptions,
+                theme: value,
+              });
+            }}
+          />
+        </DisplayOptionSection>
+
+        {/**
+         * We don't offer background options for question embeds because questions are displayed
+         * as a single card, and we want to always show a solid card background on dashboards embeds.
+         * (metabase#43838)
+         */}
+        {resourceType === "dashboard" && (
+          <Switch
+            label={t`Dashboard background`}
+            labelPosition="left"
+            variant="stretch"
+            checked={displayOptions.background}
+            onChange={(e) =>
+              onChangeDisplayOptions({
+                ...displayOptions,
+                background: e.target.checked,
+              })
+            }
+          />
+        )}
+
+        <Switch
+          label={getBorderLabel(resourceType)}
+          labelPosition="left"
+          variant="stretch"
+          checked={displayOptions.bordered}
+          onChange={(e) =>
+            onChangeDisplayOptions({
+              ...displayOptions,
+              bordered: e.target.checked,
+            })
+          }
+        />
+
+        <Switch
+          label={getTitleLabel(resourceType)}
+          labelPosition="left"
+          variant="stretch"
+          checked={displayOptions.titled}
+          onChange={(e) =>
+            onChangeDisplayOptions({
+              ...displayOptions,
+              titled: e.target.checked,
+            })
+          }
+        />
+
+        {canWhitelabel &&
+          (isDashboard ? (
+            <DashboardDownloadSettings
+              displayOptions={displayOptions}
+              onChangeDisplayOptions={onChangeDisplayOptions}
             />
           ) : (
-            <Text>{jt`You can change the font with ${(
-              <ExternalLink
-                key="fontPlan"
-                href={upgradePageUrl}
-              >{t`a paid plan`}</ExternalLink>
-            )}.`}</Text>
-          )}
-
-          <DisplayOptionSection title={t`Theme`}>
-            <SegmentedControl
-              value={displayOptions.theme ?? undefined}
-              data={THEME_OPTIONS}
-              fullWidth
-              onChange={(value) => {
-                onChangeDisplayOptions({
-                  ...displayOptions,
-                  theme: value,
-                });
-              }}
+            <QuestionDownloadSettings
+              displayOptions={displayOptions}
+              onChangeDisplayOptions={onChangeDisplayOptions}
             />
-          </DisplayOptionSection>
-
-          {/**
-           * We don't offer background options for question embeds because questions are displayed
-           * as a single card, and we want to always show a solid card background on dashboards embeds.
-           * (metabase#43838)
-           */}
-          {resourceType === "dashboard" && (
-            <Switch
-              label={t`Dashboard background`}
-              labelPosition="left"
-              variant="stretch"
-              checked={displayOptions.background}
-              onChange={(e) =>
-                onChangeDisplayOptions({
-                  ...displayOptions,
-                  background: e.target.checked,
-                })
-              }
-            />
-          )}
-
-          <Switch
-            label={getBorderLabel(resourceType)}
-            labelPosition="left"
-            variant="stretch"
-            checked={displayOptions.bordered}
-            onChange={(e) =>
-              onChangeDisplayOptions({
-                ...displayOptions,
-                bordered: e.target.checked,
-              })
-            }
-          />
-
-          <Switch
-            label={getTitleLabel(resourceType)}
-            labelPosition="left"
-            variant="stretch"
-            checked={displayOptions.titled}
-            onChange={(e) =>
-              onChangeDisplayOptions({
-                ...displayOptions,
-                titled: e.target.checked,
-              })
-            }
-          />
-
-          {canWhitelabel &&
-            (isDashboard ? (
-              <DashboardDownloadSettings
-                displayOptions={displayOptions}
-                onChangeDisplayOptions={onChangeDisplayOptions}
-              />
-            ) : (
-              <QuestionDownloadSettings
-                displayOptions={displayOptions}
-                onChangeDisplayOptions={onChangeDisplayOptions}
-              />
-            ))}
-        </Stack>
-      </StaticEmbedSetupPaneSettingsContentSection>
-
-      {!canWhitelabel && (
-        <>
-          <Divider my="2rem" />
-          <div aria-label={t`Removing the banner`}>
-            <UpsellMetabaseBanner />
-          </div>
-        </>
-      )}
-    </>
+          ))}
+      </Stack>
+    </StaticEmbedSetupPaneSettingsContentSection>
   );
 };
 

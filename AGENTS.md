@@ -1,5 +1,12 @@
 # Metabase Development Guide
 
+## This Is BCC's Fork
+
+This repository is BCC's fork of Metabase. Read [bcc-docs/development/README.md](bcc-docs/development/README.md)
+before changing it. In short: never read, copy or use anything under `enterprise/` (Metabase Commercial License);
+build and test the OSS edition only (`./bin/test-agent --oss`, never the `:ee` aliases); put BCC's documentation in
+`bcc-docs/`, not `docs/`.
+
 ## Do Not Edit `docs/` Alongside Code Changes
 
 **NEVER** change files under `docs/` as part of a code change, even if the change makes the docs out of date.

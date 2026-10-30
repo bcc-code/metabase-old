@@ -3,6 +3,7 @@
   (:require
    [clojure.test :refer :all]
    [metabase.models.interface :as mi]
+   [metabase.permissions.advanced-test-util :as advanced-test-util]
    [metabase.permissions.core :as perms]
    [metabase.permissions.models.data-permissions :as data-perms]
    [metabase.request.session :as session]
@@ -205,7 +206,7 @@
            (mt/with-premium-features #{:advanced-permissions}
              (is (mi/can-write? segment))))
           (testing "but not once the advanced-permissions feature is gone"
-            (mt/with-premium-features #{}
+            (advanced-test-util/without-advanced-permissions
               (is (not (mi/can-write? segment))))))))))
 
 (deftest can-write?-analyst-restricted-test
@@ -250,7 +251,7 @@
                                                         :definition {:filter [:> [:field (mt/id :venues :price) nil]
                                                                               2]}})))))
           (testing "but not once the advanced-permissions feature is gone"
-            (mt/with-premium-features #{}
+            (advanced-test-util/without-advanced-permissions
               (is (false? (mi/can-create? :model/Segment {:name       "Test Segment"
                                                           :table_id   (mt/id :venues)
                                                           :definition {:filter [:> [:field (mt/id :venues :price) nil]

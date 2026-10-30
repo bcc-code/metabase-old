@@ -43,6 +43,7 @@ const omittedDefaultValues: Record<DataPermission, DataPermissionValue> = {
   [DataPermission.DETAILS]: DataPermissionValue.NO,
   [DataPermission.TRANSFORMS]: DataPermissionValue.NO,
   [DataPermission.COLLECTIONS]: DataPermissionValue.NONE,
+  [DataPermission.APPLICATION]: DataPermissionValue.NO,
 };
 
 function getOmittedPermissionValue(

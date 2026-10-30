@@ -1,8 +1,10 @@
 (ns metabase.permissions.core
   "`permissions` module API namespace."
   (:require
+   [metabase.permissions.application-graph]
    [metabase.permissions.data-access-token]
    [metabase.permissions.db]
+   [metabase.permissions.group-manager]
    [metabase.permissions.models.application-permissions-revision]
    [metabase.permissions.models.collection-permission-graph-revision]
    [metabase.permissions.models.collection.graph]
@@ -41,6 +43,9 @@
  [metabase.permissions.db
   group-tenant-flags
   groups-by-ids]
+ [metabase.permissions.group-manager
+  current-user-is-manager-of-group?
+  set-user-group-memberships!]
  [metabase.permissions.models.data-permissions
   at-least-as-permissive?
   batch-delete-permissions!
@@ -55,6 +60,7 @@
   index-database-permissions
   is-superuser?
   is-data-analyst?
+  limited-download-row-limit
   most-permissive-database-permission-for-user
   native-download-permission-for-user
   permissions-for-user
@@ -174,6 +180,8 @@
 
 ;;; import these vars with different names to make their purpose more obvious.
 (p/import-def metabase.permissions.models.permissions-group/all-users                    all-users-group)
+(p/import-def metabase.permissions.application-graph/graph                              application-permissions-graph)
+(p/import-def metabase.permissions.application-graph/update-graph!                      update-application-permissions-graph!)
 (p/import-def metabase.permissions.models.permissions-group/admin                        admin-group)
 (p/import-def metabase.permissions.models.permissions-group/data-analyst                 data-analyst-group)
 (p/import-def metabase.permissions.models.application-permissions-revision/latest-id     latest-application-permissions-revision-id)

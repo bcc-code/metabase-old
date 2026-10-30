@@ -1,0 +1,31 @@
+# Local .terraform directories
+**/.terraform*/
+!.terraform.lock.hcl
+
+# .tfstate files
+*.tfstate*
+
+# .tfplan files
+*.tfplan
+
+# .tfbackend and backend.tf files
+*.tfbackend
+backend.tf
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Variable files, which may hold secrets: variables come from the GitHub environment instead
+*.tfvars
+*.tfvars.json
+
+# Local override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI configuration files
+.terraformrc
+terraform.rc

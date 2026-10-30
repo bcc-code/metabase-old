@@ -11,7 +11,11 @@ import {
   useGroupMappings,
 } from "./use-group-mappings";
 
-type GroupSyncSettingKey = "ldap-group-sync" | "saml-group-sync";
+type GroupSyncSettingKey =
+  | "ldap-group-sync"
+  | "saml-group-sync"
+  | "jwt-group-sync"
+  | "oidc-group-sync";
 
 type SettingsGroupMappingSectionProps = {
   syncSettingKey: GroupSyncSettingKey;

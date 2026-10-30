@@ -15,6 +15,7 @@
    [metabase.metabot.tools.sql.create :as create-sql-query-tools]
    [metabase.metabot.tools.sql.edit :as edit-sql-query-tools]
    [metabase.metabot.tools.sql.replace :as replace-sql-query-tools]
+   [metabase.metabot.tools.sql.test-run :as test-run]
    [metabase.util :as u]
    [metabase.util.i18n :refer [tru]]))
 
@@ -123,6 +124,7 @@
                          (do-with-notebook-fallback
                           ctx #(create-sql-query-tools/create-sql-query {:database-id database-id :sql sql-query})))
           {:keys [query-id query-content]} action-result
+          _ (test-run/check-runs! ctx action-result)
           structured (assoc action-result :result-type :query)
           instr (if code-edit?
                   instructions/query-loaded-in-editor-instructions
@@ -160,6 +162,7 @@
   (let [{:keys [query-id query-content] :as action-result} (sql.common/validated-sql-action! operation-result)
         structured (assoc action-result :result-type :query)
         buffer-id (first-code-editor-buffer-id (some-> (:memory-atom ctx) deref))
+        _ (test-run/check-runs! ctx action-result)
         instr (instruction-fn query-id (some? buffer-id))]
     {:output (format-query-output structured instr)
      :structured-output structured

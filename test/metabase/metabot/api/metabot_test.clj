@@ -275,7 +275,7 @@
                                        {:use_verified_content true}))))
         (testing "should prevent enabling verified content without premium feature"
           (mt/with-premium-features #{} ; no content-verification
-            (is (= "Content verification is a paid feature not currently available to your instance. Please upgrade to use it. Learn more at metabase.com/upgrade/"
+            (is (= "Content verification is not available on this instance."
                    (:message (mt/user-http-request :crowberto :put 402
                                                    (format "metabot/metabot/%d" metabot-id)
                                                    {:use_verified_content true}))))))))))

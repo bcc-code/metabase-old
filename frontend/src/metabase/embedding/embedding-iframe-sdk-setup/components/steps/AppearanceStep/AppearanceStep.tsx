@@ -3,10 +3,8 @@ import cx from "classnames";
 import CS from "metabase/css/core/index.css";
 import { Stack } from "metabase/ui";
 
-import { UPSELL_CAMPAIGN_BEHAVIOR } from "../../../analytics";
 import { useSdkIframeEmbedSetupContext } from "../../../context";
 import { AuthenticationCard } from "../../AuthenticationCard";
-import { EmbeddingUpsell } from "../../Common/EmbeddingUpsell";
 import { LegacyStaticEmbeddingAlert } from "../../LegacyStaticEmbeddingAlert";
 
 import { AppearanceCard } from "./AppearanceCard";
@@ -45,7 +43,6 @@ export const AppearanceStep = () => {
         <AppearanceCard />
       </Stack>
       <LegacyStaticEmbeddingAlert />
-      <EmbeddingUpsell campaign={UPSELL_CAMPAIGN_BEHAVIOR} />
     </Stack>
   );
 };

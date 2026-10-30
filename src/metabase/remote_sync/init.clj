@@ -4,6 +4,10 @@
    [metabase.models.interface :as mi]
    [metabase.remote-sync.db :as remote-sync.db]
    [metabase.remote-sync.events]
+   [metabase.remote-sync.models.git-sync-entity]
+   [metabase.remote-sync.models.git-sync-task]
+   [metabase.remote-sync.settings]
+   [metabase.remote-sync.task.auto-import]
    [methodical.core :as methodical]
    [toucan2.core :as t2]))
 

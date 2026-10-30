@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { t } from "ttag";
 import { findWhere } from "underscore";
 
-import { UpsellCacheConfig } from "metabase/admin/upsells";
 import { DelayedLoadingAndErrorWrapper } from "metabase/common/components/LoadingAndErrorWrapper/DelayedLoadingAndErrorWrapper";
 import { PLUGIN_CACHING } from "metabase/plugins";
 import { SettingsPageWrapper } from "metabase/settings-components";
@@ -100,7 +99,6 @@ const RootCachingStrategyEditor = () => {
               )}
             </Box>
           </Box>
-          <UpsellCacheConfig location="performance-data_cache" />
         </Flex>
       </SettingsPageWrapper>
     </PerformancePageContent>

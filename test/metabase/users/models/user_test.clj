@@ -211,9 +211,8 @@
         (mt/with-temporary-raw-setting-values [send-new-sso-user-admin-email? "false"]
           (with-fresh-accepted-admin!
             (fn [admin]
-              (is (= (if config/ee-available?
-                       {}
-                       {(:email admin) ["<New User> created a Metabase account"]})
+              ;; this fork always provides SSO, so the setting is honored with or without the enterprise code
+              (is (= {}
                      (-> (invite-user-accept-and-check-inboxes! :sso-auth? true)
                          (select-keys [(:email admin)])))))))))))
 

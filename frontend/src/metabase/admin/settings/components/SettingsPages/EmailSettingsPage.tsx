@@ -1,15 +1,16 @@
 import { t } from "ttag";
 
-import { UpsellHostingBanner } from "metabase/admin/upsells";
 import { LoadingAndErrorWrapper } from "metabase/common/components/LoadingAndErrorWrapper";
 import { useHasTokenFeature } from "metabase/common/hooks";
+import { getUserIsAdmin } from "metabase/current-user";
+import { useSelector } from "metabase/redux";
 import { useGetSettingsQuery } from "metabase/settings";
 import {
   AdminSettingInput,
   SettingsPageWrapper,
   SettingsSection,
 } from "metabase/settings-components";
-import { Center } from "metabase/ui";
+import { Text } from "metabase/ui";
 
 import { SMTPConnectionCard } from "../Email/SMTPConnectionCard";
 import { EmailFromAddressWidget } from "../widgets/EmailFromAddressWidget";
@@ -23,6 +24,8 @@ export function EmailSettingsPage() {
   const hasEmailRestrictRecipientsFeature = useHasTokenFeature(
     "email_restrict_recipients",
   );
+  // password reset emails go through the SMTP server, so only admins configure it
+  const isAdmin = useSelector(getUserIsAdmin);
 
   if (isLoading) {
     return <LoadingAndErrorWrapper loading />;
@@ -31,7 +34,13 @@ export function EmailSettingsPage() {
   return (
     <>
       <SettingsPageWrapper title={t`Email`}>
-        <SMTPConnectionCard />
+        {isAdmin ? (
+          <SMTPConnectionCard />
+        ) : (
+          !isEmailConfigured && (
+            <Text c="text-secondary">{t`An admin needs to set up the SMTP server first.`}</Text>
+          )
+        )}
         {isEmailConfigured && (
           <SettingsSection>
             <AdminSettingInput
@@ -77,9 +86,6 @@ export function EmailSettingsPage() {
             <SendTestEmailWidget />
           </SettingsSection>
         )}
-        <Center>
-          <UpsellHostingBanner location="settings-email-migrate_to_cloud" />
-        </Center>
       </SettingsPageWrapper>
     </>
   );

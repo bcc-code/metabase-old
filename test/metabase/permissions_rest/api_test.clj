@@ -8,6 +8,7 @@
    [metabase.permissions-rest.api :as api.permissions]
    [metabase.permissions-rest.api-test-util :as perm-test-util]
    [metabase.permissions-rest.data-permissions.graph :as data-perms.graph]
+   [metabase.permissions.advanced-test-util :as advanced-test-util]
    [metabase.permissions.core :as perms]
    [metabase.permissions.models.data-permissions :as data-perms]
    [metabase.permissions.models.permissions-group :as perms-group]
@@ -88,7 +89,7 @@
 
 (deftest data-analyst-group-hidden-without-feature-when-empty-test
   (testing "GET /api/permissions/group omits an empty Data Analysts group without advanced-permissions"
-    (mt/with-premium-features #{}
+    (advanced-test-util/without-advanced-permissions
       (is (not (data-analyst-group-listed?))))))
 
 (mt/when-ee-evailable
@@ -323,7 +324,7 @@
             (testing "excludes the Administrators group, whose access is implicit rather than granted"
               (is (not (contains? ids (u/the-id (perms-group/admin))))))))
         (testing "without advanced-permissions the Data Analysts group is dropped, even when it holds a grant"
-          (mt/with-premium-features #{}
+          (advanced-test-util/without-advanced-permissions
             (let [ids (fetch-ids)]
               (is (not (contains? ids (u/the-id (perms-group/data-analyst)))))
               (is (contains? ids (u/the-id readers))))))
@@ -331,7 +332,7 @@
          (testing "without advanced-permissions the Data Analysts group is dropped even when populated"
            (mt/with-temp [:model/User {user-id :id} {}]
              (add-to-data-analyst-group-with-feature! user-id)
-             (mt/with-premium-features #{}
+             (advanced-test-util/without-advanced-permissions
                (is (not (contains? (fetch-ids) (u/the-id (perms-group/data-analyst)))))))))))
     (testing "works for questions, resolving the card's collection"
       (mt/with-temp [:model/Collection       coll {}
@@ -401,7 +402,7 @@
   (testing "POST /permissions/group enterprise feature enforcement"
     (testing "throws ee-feature-error when trying to create tenant group without tenants feature"
       (mt/with-premium-features #{}
-        (is (=? {:message "Tenants is a paid feature not currently available to your instance. Please upgrade to use it. Learn more at metabase.com/upgrade/"}
+        (is (=? {:message "Tenants is not available on this instance."}
                 (mt/user-http-request :crowberto :post 402 "permissions/group" {:name "Tenant Group" :is_tenant_group true})))))))
 
 (deftest delete-group-test
@@ -655,17 +656,17 @@
                                       :table_id  table-id
                                       :perm_type :perms/view-data))))))))
 
-(deftest update-perms-graph-error-test
+(deftest update-perms-graph-sandboxes-test
   (testing "PUT /api/permissions/graph"
-    (testing "make sure an error is thrown if the :sandboxes key is included in an OSS request"
+    (testing "this fork provides sandboxes (row and column security) without a premium token"
       (mt/with-temp [:model/PermissionsGroup {group-id :id} {}
                      :model/Table            {table-id :id} {:db_id (mt/id) :schema "PUBLIC"}]
         (mt/with-premium-features #{}
-          (mt/assert-has-premium-feature-error
-           "Sandboxes"
-           (mt/user-http-request :crowberto :put 402 "permissions/graph"
-                                 (assoc (data-perms.graph/api-graph)
-                                        :sandboxes [{:group_id group-id, :table_id table-id, :card_id 1}]))))))))
+          (is (=? {:sandboxes [{:group_id group-id, :table_id table-id}]}
+                  (mt/user-http-request :crowberto :put 200 "permissions/graph"
+                                        (assoc (data-perms.graph/api-graph)
+                                               :sandboxes [{:group_id group-id, :table_id table-id}]))))
+          (is (t2/exists? :model/Sandbox :group_id group-id :table_id table-id)))))))
 
 (deftest update-perms-graph-blocked-view-data-test
   (testing "PUT /api/permissions/graph"
@@ -750,7 +751,7 @@
                    :model/PermissionsGroupMembership {id :id} {:group_id (:id group)
                                                                :user_id  (:id user)}]
       (testing "This API is for EE only"
-        (mt/with-premium-features #{}
+        (advanced-test-util/without-advanced-permissions
           (is (= "The group manager permissions functionality is only enabled if you have a premium token with the advanced-permissions feature."
                  (mt/user-http-request :crowberto :put 402 (format "permissions/membership/%d" id) {:is_group_manager false}))))))))
 
@@ -943,7 +944,7 @@
                      (t2/exists? :model/PermissionsGroupMembership :user_id user-id :group_id group-id))]
       (mt/with-temp [:model/User {user-id :id} {}]
         (testing "is refused without the :advanced-permissions feature"
-          (mt/with-premium-features #{}
+          (advanced-test-util/without-advanced-permissions
             (is (= (str perms/fail-to-add-data-analyst-msg)
                    (mt/user-http-request :crowberto :post 402 "permissions/membership"
                                          {:group_id group-id, :user_id user-id})))
@@ -957,7 +958,7 @@
              (is (member? user-id))
              (is (true? (boolean (t2/select-one-fn :is_data_analyst :model/User :id user-id))))))
          (testing "and the member can still be removed without the feature"
-           (mt/with-premium-features #{}
+           (advanced-test-util/without-advanced-permissions
              (let [membership-id (t2/select-one-pk :model/PermissionsGroupMembership
                                                    :user_id user-id :group_id group-id)]
                (mt/user-http-request :crowberto :delete 204 (format "permissions/membership/%d" membership-id))

@@ -8,6 +8,8 @@ interface LogoIconProps {
   height?: number;
   dark?: boolean;
   fill?: string;
+  /** Color the logo with the instance's (possibly white-labeled) brand color instead of Metabase's. */
+  themed?: boolean;
 }
 
 export const DefaultLogoIcon = ({
@@ -15,12 +17,14 @@ export const DefaultLogoIcon = ({
   height = 32,
   width,
   fill = "currentcolor",
+  themed = false,
 }: LogoIconProps) => {
   return (
     <svg
       className={cx(
         "Icon",
-        { [CS.textMetabaseBrand]: !dark },
+        { [CS.textMetabaseBrand]: !dark && !themed },
+        { [CS.textBrand]: !dark && themed },
         { [CS.textWhite]: dark },
       )}
       viewBox="0 0 212 256"

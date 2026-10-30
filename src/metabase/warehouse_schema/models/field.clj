@@ -2,13 +2,14 @@
   (:require
    [clojure.string :as str]
    [medley.core :as m]
+   [metabase.api.common :as api]
    [metabase.app-db.core :as mdb]
    [metabase.lib.core :as lib]
    [metabase.lib.schema.metadata]
    [metabase.models.interface :as mi]
    [metabase.models.serialization :as serdes]
    [metabase.permissions.core :as perms]
-   [metabase.premium-features.core :refer [defenterprise]]
+   [metabase.premium-features.core :as premium-features :refer [defenterprise]]
    [metabase.remote-sync.core :as remote-sync]
    [metabase.util :as u]
    [metabase.util.i18n :refer [tru]]
@@ -205,15 +206,19 @@
    (mi/can-query? (warehouse-schema.db/field pk))))
 
 (defenterprise current-user-can-write-field?
-  "OSS implementation. Returns a boolean whether the current user can write the given field.
-   Checks both that the user is a superuser and that the parent table is editable (not in a
-   remote-synced collection in read-only mode)."
+  "Returns a boolean whether the current user can write the given field: they must be an admin or, with the
+  advanced-permissions feature, belong to a group that may manage the metadata of its table; and the table must be
+  editable (not in a remote-synced collection in read-only mode)."
   metabase-enterprise.advanced-permissions.common
   [instance]
   (let [table (or (:table instance)
                   (warehouse-schema.db/table (:table_id instance)))]
     (and (remote-sync/table-editable? table)
-         (mi/superuser?))))
+         (or (mi/superuser?)
+             (and (premium-features/enable-advanced-permissions?)
+                  api/*current-user-id*
+                  (perms/user-has-permission-for-table? api/*current-user-id* :perms/manage-table-metadata :yes
+                                                        (:db_id table) (u/the-id table)))))))
 
 (defmethod mi/can-write? :model/Field
   ([instance]

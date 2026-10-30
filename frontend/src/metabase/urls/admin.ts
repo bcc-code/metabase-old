@@ -160,10 +160,6 @@ export function uploadsSettings() {
   return "/admin/settings/uploads";
 }
 
-export function adminLicense() {
-  return "/admin/settings/license";
-}
-
 export function customViz() {
   return "/admin/settings/custom-visualizations";
 }

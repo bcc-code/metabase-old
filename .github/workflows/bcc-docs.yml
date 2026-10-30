@@ -1,0 +1,32 @@
+# Publishes bcc-docs/ to the BCC developer portal (developer.bcc.no/<repository name>/), behind BCC SignOn.
+# See https://developer.bcc.no/guides/documentation/deploying-site/
+name: BCC - Publish documentation
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - bcc-docs/**
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: developer-docs
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Build and publish the documentation
+        uses: bcc-code/bcc-developer-docs-deploy@7752f7e1f28cd0434ed5a18d936385187922e576 # v1
+        with:
+          pat: ${{ secrets.DEVELOPER_DOCS_DEPLOY_PAT }}
+          docs-dir: bcc-docs
+          # Nothing of this repository's code is uploaded as portal components.
+          components-dir: bcc-docs/.no-components

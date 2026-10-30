@@ -554,3 +554,56 @@
                           :actual-perms   @api/*current-user-permissions-set*}
                          (when (instance? Throwable required-perms)
                            required-perms))))))))
+
+;;; ------------------------------------------------ Download permissions ------------------------------------------------
+
+(defn- download-source-ids
+  "[[query->source-ids]] of `preprocessed-query`, except that a native stage anywhere sets `:native?`, including the
+  stages of the Cards the query is built on: running such a query only takes read access to the Card, but its results
+  can come from any table the native query reads."
+  [preprocessed-query]
+  (let [strip-markers (fn [form]
+                        (perf/postwalk (fn [x]
+                                         (cond-> x
+                                           (map? x) (dissoc :qp/stage-is-from-source-card)))
+                                       form))]
+    (query->source-ids (if (:lib/type preprocessed-query)
+                         ;; only the stages: the rest of an MBQL 5 query holds its metadata provider
+                         (update preprocessed-query :stages strip-markers)
+                         (strip-markers preprocessed-query)))))
+
+(defn- most-restrictive-download-level
+  [[level & more-levels]]
+  (reduce (fn [level other-level]
+            (if (perms/at-least-as-permissive? :perms/download-results level other-level)
+              other-level
+              level))
+          level
+          more-levels))
+
+(mu/defn download-perms-level :- [:enum :one-million-rows :ten-thousand-rows :no]
+  "The `:perms/download-results` level the User with `user-id` has for the results of `query`: the most restrictive of
+  their levels for the tables it reads, and, when it has a native stage (its own or that of a Card it is built on),
+  their level for the whole database, since native queries can read any table. Each of those levels is the most
+  permissive one any of the user's groups holds. Pass `:already-preprocessed? true` for a query the QP has already
+  preprocessed for this user, so that it is not preprocessed again; otherwise the query is preprocessed as an admin,
+  and the levels come from the tables of the query itself rather than of a sandbox. An empty query, which has no
+  results, doesn't restrict downloads."
+  [query   :- [:maybe ::query]
+   user-id :- [:maybe ::lib.schema.id/user]
+   & {:keys [already-preprocessed?]} :- [:maybe [:map {:closed true}
+                                                  [:already-preprocessed? {:optional true} [:maybe :boolean]]]]]
+  (if (empty? query)
+    ;; a query with no source has no results to download
+    :one-million-rows
+    (let [preprocessed                (if already-preprocessed?
+                                        query
+                                        (preprocess-without-per-user-lens query))
+          db-id                       (:database preprocessed)
+          {:keys [table-ids native?]} (download-source-ids preprocessed)]
+      (when (= user-id api/*current-user-id*)
+        (perms/prime-table-perms-cache {:db-ids #{db-id} :table-ids table-ids}))
+      (most-restrictive-download-level
+       (cond-> (mapv #(perms/table-permission-for-user user-id :perms/download-results db-id %) table-ids)
+         ;; also when no table is known, rather than letting a query whose tables couldn't be found through
+         (or native? (empty? table-ids)) (conj (perms/native-download-permission-for-user user-id db-id)))))))

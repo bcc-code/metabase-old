@@ -6,10 +6,6 @@ import { useSetting, useUserSetting } from "metabase/settings";
 import { isWithinIframe } from "metabase/utils/iframe";
 
 import { DevModeBanner } from "./DevModeBanner";
-import {
-  LicenseTokenMissingBanner,
-  useLicenseTokenMissingBanner,
-} from "./LicenseTokenMissingBanner";
 import { PaymentBanner } from "./PaymentBanner/PaymentBanner";
 import { ReadOnlyBanner } from "./ReadOnlyBanner";
 import { TrialBanner } from "./TrialBanner";
@@ -28,8 +24,6 @@ export const AppBanner = () => {
   const isDevMode = useSetting("development-mode?");
 
   const upgradeBannerProps = useUpgradeBanner();
-  const { shouldShowLicenseTokenMissingBanner, dismissBanner } =
-    useLicenseTokenMissingBanner(isAdmin);
 
   const tokenExpiryTimestamp = tokenStatus?.["valid-thru"];
   const isValidTrial = tokenExpiryTimestamp && tokenStatus?.trial && isHosted;
@@ -55,10 +49,6 @@ export const AppBanner = () => {
 
   if (upgradeBannerProps) {
     return <UpgradeBanner {...upgradeBannerProps} />;
-  }
-
-  if (shouldShowLicenseTokenMissingBanner) {
-    return <LicenseTokenMissingBanner onClose={dismissBanner} />;
   }
 
   if (isValidTrial) {

@@ -18,6 +18,7 @@ import * as Errors from "metabase/utils/errors";
 import type { LocaleData, User } from "metabase-types/api";
 
 import type { UserProfileData } from "../../types";
+import { SqlErrorsPreference } from "../SqlErrorsPreference";
 
 const SSO_PROFILE_SCHEMA = Yup.object({
   locale: Yup.string().nullable().default(null),
@@ -69,6 +70,7 @@ const UserProfileForm = ({
   return (
     <Box>
       <ColorSchemeSwitcher />
+      <SqlErrorsPreference />
       <FormProvider
         initialValues={initialValues}
         validationSchema={schema}

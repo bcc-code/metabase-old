@@ -14,6 +14,7 @@ describe("isSettingsManagerPath", () => {
   it.each([
     "authentication",
     "authentication/ldap",
+    "domains",
     "license",
     "generalized",
     "general/anything",

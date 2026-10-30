@@ -41,12 +41,12 @@
 (set! *warn-on-reflection* true)
 
 (defenterprise cache-strategy
-  "Returns cache strategy for a card. In EE, this checks the hierarchy for the card, dashboard, or
-  database (in that order). In OSS returns root configuration, taking card's :cache_invalidated_at
-  into consideration."
+  "Returns cache strategy for a card, taking the card's `:cache_invalidated_at` into consideration. With granular cache
+  controls this checks the hierarchy for the card, the dashboard it runs on (when it does), and its database, in that
+  order, before the root configuration; without them only the root configuration counts."
   metabase-enterprise.cache.strategies
-  [card _dashboard-id]
-  (cache/card-strategy (cache/root-strategy) card))
+  [card dashboard-id]
+  (cache/effective-strategy card dashboard-id))
 
 (defn- enrich-strategy [strategy query]
   (case (:type strategy)
@@ -367,6 +367,7 @@
     :public-xlsx-download   nil
     :embedded-xlsx-download nil
     :dashboard-subscription nil
+    :cache-refresh          nil
     :pulse                  nil
     :map-tiles              nil
     context))

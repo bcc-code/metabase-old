@@ -4,6 +4,7 @@
    [metabase.app-db.core :as mdb]
    [metabase.config.core :as config]
    [metabase.premium-features.defenterprise :refer [defenterprise]]
+   [metabase.premium-features.fork-features :as fork-features]
    [metabase.settings.core :as setting :refer [defsetting]]
    [metabase.util.i18n :refer [deferred-tru]]))
 
@@ -52,7 +53,7 @@
 
 ;;; TODO - rename this to premium-features-token?
 (defsetting premium-embedding-token
-  (deferred-tru "Token for premium features. Go to the MetaStore to get yours!")
+  (deferred-tru "Token for premium features.")
   :audit :never
   :sensitive? true
   :setter (fn [new-value]
@@ -89,8 +90,9 @@
 
 (defn- default-premium-feature-getter [feature]
   (fn []
-    (and config/ee-available?
-         (has-feature? feature))))
+    (or (fork-features/provides? feature)
+        (and config/ee-available?
+             (has-feature? feature)))))
 
 (defmacro define-premium-feature
   "Convenience for generating a [[metabase.settings.models.setting/defsetting]] form for a premium token feature. (The Settings
@@ -370,12 +372,20 @@
   "Should we offer users the Metabase-managed AI provider?"
   :offer-metabase-ai-managed)
 
+(defsetting custom-visualizations-enabled
+  (deferred-tru "Whether people can use the custom visualizations that admins install.")
+  :type       :boolean
+  :default    true
+  :visibility :admin
+  :audit      :getter
+  :export?    false)
+
 (defenterprise enable-custom-viz?
-  "Should we enable custom visualizations? OSS falls back to `false`; the EE implementation checks the
-  `custom-viz-enabled` setting and the `:custom-viz` premium feature."
+  "Should we enable custom visualizations? This fork implements them in its own `custom-viz` module, so the OSS
+  fallback is the [[custom-visualizations-enabled]] setting."
   metabase-enterprise.custom-viz-plugin.settings
   []
-  false)
+  (custom-visualizations-enabled))
 
 (define-premium-feature enable-data-complexity-score?
   "Should we expose Data Complexity Score?"

@@ -1,6 +1,7 @@
 (ns metabase.permissions.models.permissions-group-membership-test
   (:require
    [clojure.test :refer :all]
+   [metabase.permissions.advanced-test-util :as advanced-test-util]
    [metabase.permissions.core :as perms]
    [metabase.permissions.models.permissions-group :as perms-group]
    [metabase.test :as mt]
@@ -111,7 +112,7 @@
 (deftest add-to-data-analyst-group-without-advanced-permissions-test
   (testing "adding a user to the Data Analysts group is refused without the :advanced-permissions feature"
     (mt/with-temp [:model/User {user-id :id} {}]
-      (mt/with-premium-features #{}
+      (advanced-test-util/without-advanced-permissions
         (is (thrown-with-msg?
              clojure.lang.ExceptionInfo #"Advanced Permissions"
              (perms/add-user-to-group! user-id (data-analyst-group-id))))
@@ -190,7 +191,7 @@
   (testing "a batched add that includes the Data Analysts group is refused entirely"
     (mt/with-temp [:model/User {user-id :id} {}
                    :model/PermissionsGroup {group-id :id} {:name "Test Group"}]
-      (mt/with-premium-features #{}
+      (advanced-test-util/without-advanced-permissions
         (is (thrown-with-msg?
              clojure.lang.ExceptionInfo #"Advanced Permissions"
              (perms/add-user-to-groups! user-id [group-id (data-analyst-group-id)])))

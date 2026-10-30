@@ -87,6 +87,7 @@
 
 (p/import-vars
  [metabase.settings.models.setting
+  admin-only-setting?
   admin-writable-site-wide-settings
   can-read-setting?
   current-user-readable-visibilities

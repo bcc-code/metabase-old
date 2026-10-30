@@ -74,7 +74,7 @@ const setup = async (props: {
     {
       storeInitialState: {
         settings: createMockSettingsState(settings),
-        currentUser: createMockUser({ is_superuser: true }), // upsells only show for admins
+        currentUser: createMockUser({ is_superuser: true }),
       },
     },
   );
@@ -107,37 +107,23 @@ describe("UpdatesSettingsPage", () => {
     expect(screen.getByRole("switch")).toBeChecked();
   });
 
-  it("should show upsell when not hosted", async () => {
-    await setup({
-      isHosted: false,
-      isPro: false,
-      versionTag: "v1.53.8",
-    });
-    expect(
-      await screen.findByText("Migrate to Metabase Cloud"),
-    ).toBeInTheDocument();
-  });
-
-  it("should not show upsell to self-hosted pro users", async () => {
-    await setup({
-      isHosted: false,
-      isPro: true,
-      versionTag: "v1.53.8",
-    });
-    expect(
-      screen.queryByText("Migrate to Metabase Cloud"),
-    ).not.toBeInTheDocument();
-  });
-
-  it("should not show upsell when hosted", async () => {
-    await setup({
-      isHosted: true,
-      versionTag: "v1.53.8",
-    });
-    expect(
-      screen.queryByText("Migrate to Metabase Cloud"),
-    ).not.toBeInTheDocument();
-  });
+  it.each([{ isPro: false }, { isPro: true }])(
+    "should not advertise Metabase Cloud on self-hosted instances (isPro: $isPro)",
+    async ({ isPro }) => {
+      await setup({
+        isHosted: false,
+        isPro,
+        versionTag: "v1.53.8",
+      });
+      expect(screen.getByText("Check for updates")).toBeInTheDocument();
+      expect(
+        screen.queryByText("Migrate to Metabase Cloud"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Minimize maintenance"),
+      ).not.toBeInTheDocument();
+    },
+  );
 
   it("should show the version notice and eol notice when checking for updates", async () => {
     await setup({

@@ -1,0 +1,1 @@
+export { ColorPaletteSetting } from "./ColorPaletteSetting";

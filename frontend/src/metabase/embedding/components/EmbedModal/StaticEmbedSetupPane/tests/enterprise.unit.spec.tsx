@@ -22,26 +22,29 @@ describe("Static Embed Setup phase - EE, no token", () => {
         });
 
         expect(
-          screen.getByText(
+          screen.getByText("Customizing look and feel"),
+        ).toBeInTheDocument();
+        expect(screen.queryByText("Font")).not.toBeInTheDocument();
+        expect(
+          screen.queryByText(
             getBrokenUpTextMatcher("You can change the font with a paid plan."),
           ),
-        ).toBeVisible();
+        ).not.toBeInTheDocument();
       });
 
-      it('should render "Powered by Metabase" banner caption', async () => {
+      it("should not advertise removing the banner", async () => {
         await setup({
           props: {},
           activeTab: "Look and Feel",
           enterprisePlugins: ["whitelabel"],
         });
 
-        expect(screen.getByText("Removing the banner")).toBeVisible();
-
         expect(
-          screen.getByText(
-            "The “Powered by Metabase” banner appears on all guest embeds created with your current version. Upgrade to remove it (and customize a lot more)",
-          ),
-        ).toBeVisible();
+          screen.getByText("Customizing look and feel"),
+        ).toBeInTheDocument();
+        expect(
+          screen.queryByText("Removing the banner"),
+        ).not.toBeInTheDocument();
       });
     });
   });

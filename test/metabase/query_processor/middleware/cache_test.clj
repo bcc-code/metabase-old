@@ -537,6 +537,45 @@
           (is (= :not-cached
                  (run-query :cache-strategy strategy))))))))
 
+(deftest duration-strategy-test
+  (testing "Results cached under a :duration strategy are served until the duration has passed"
+    (with-mock-cache! [save-chan]
+      (let [strategy {:type :duration :duration 1 :unit "hours"}]
+        (run-query :cache-strategy strategy)
+        (mt/wait-for-result save-chan)
+        (is (= :cached
+               (run-query :cache-strategy strategy)))
+        (testing "...or until the strategy is invalidated"
+          (is (= :not-cached
+                 (run-query :cache-strategy (assoc strategy :invalidated-at (t/offset-date-time))))))))))
+
+(deftest duration-strategy-expiry-test
+  (testing "Results cached under a :duration strategy are stale once the duration has passed"
+    (with-mock-cache! [save-chan]
+      (let [strategy {:type :duration :duration 1 :unit "seconds"}]
+        (run-query :cache-strategy strategy)
+        (mt/wait-for-result save-chan)
+        (Thread/sleep 1100)
+        (is (= :not-cached
+               (run-query :cache-strategy strategy)))))))
+
+(deftest schedule-strategy-test
+  (testing "Results cached under a :schedule strategy are served until the schedule runs"
+    (with-mock-cache! [save-chan]
+      (let [strategy {:type           :schedule
+                      :schedule       "0 0 6 * * ? *"
+                      :invalidated-at (t/minus (t/offset-date-time) (t/hours 1))}]
+        (run-query :cache-strategy strategy)
+        (mt/wait-for-result save-chan)
+        (is (= :cached
+               (run-query :cache-strategy strategy)))
+        (testing "...and not once it has run"
+          (is (= :not-cached
+                 (run-query :cache-strategy (assoc strategy :invalidated-at (t/offset-date-time))))))
+        (testing "Nothing is served from cache while no run of the schedule is known"
+          (is (= :not-cached
+                 (run-query :cache-strategy (dissoc strategy :invalidated-at)))))))))
+
 (deftest invalid-cache-entry-test
   (testing "We should handle invalid cache entries gracefully"
     (with-mock-cache! [save-chan]

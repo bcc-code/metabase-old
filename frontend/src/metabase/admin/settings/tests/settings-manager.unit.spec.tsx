@@ -4,7 +4,6 @@ import { setup } from "./setup";
 
 describe("Admin Settings Routing - settings managers", () => {
   it.each([
-    "/license",
     "/updates",
     "/authentication",
     "/authentication/2fa/enrolled",
@@ -47,9 +46,15 @@ describe("Admin Settings Routing - settings managers", () => {
     expect(screen.queryByTestId("unauthorized-page")).not.toBeInTheDocument();
   });
 
-  it("renders License for admins", async () => {
-    await setup({ isAdmin: true, initialRoute: "/license" });
+  it.each(["/license", "/cloud"])(
+    "shows not found for %s, which only advertised paid plans",
+    async (path) => {
+      await setup({ isAdmin: true, initialRoute: path });
 
-    expect(await screen.findByText(/Looking for more/i)).toBeInTheDocument();
-  });
+      expect(
+        await screen.findByText(/the page you asked for couldn't be found/i),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/Looking for more/i)).not.toBeInTheDocument();
+    },
+  );
 });

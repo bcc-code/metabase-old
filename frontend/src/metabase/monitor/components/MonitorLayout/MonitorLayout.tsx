@@ -21,7 +21,11 @@ import {
   AreaTab,
   AreaTabGroup,
 } from "metabase/nav/components/AreaLayout";
-import { PLUGIN_DATA_APPS } from "metabase/plugins";
+import {
+  PLUGIN_DATA_APPS,
+  PLUGIN_MONITOR,
+  PLUGIN_MONITOR_TOOLS,
+} from "metabase/plugins";
 import { useSelector } from "metabase/redux";
 import { Outlet, useLocation } from "metabase/router";
 import { FixedSizeIcon, Flex } from "metabase/ui";
@@ -101,17 +105,30 @@ export function MonitorLayout() {
   const hasAuditAppFeature = useHasTokenFeature("audit_app");
   const hasAiControlsFeature = useHasTokenFeature("ai_controls");
   const hasSessionManagementFeature = useHasTokenFeature("session-management");
-  const canAccessDependencyDiagnosticsPage = useSelector(
-    canAccessDependencyDiagnostics,
-  );
-  const canAccessContentDiagnosticsPage = useSelector(
-    canAccessContentDiagnostics,
-  );
+  // A section is listed only when this instance provides it.
+  const canAccessDependencyDiagnosticsPage =
+    useSelector(canAccessDependencyDiagnostics) &&
+    PLUGIN_MONITOR.isDependencyDiagnosticsEnabled &&
+    hasDependenciesFeature;
+  const canAccessContentDiagnosticsPage =
+    useSelector(canAccessContentDiagnostics) &&
+    PLUGIN_MONITOR.isContentDiagnosticsEnabled &&
+    hasContentDiagnosticsFeature;
   const canAccessTools = useSelector(canAccessMonitoringTools);
+  const canAccessErroringQuestions =
+    canAccessTools &&
+    PLUGIN_MONITOR_TOOLS.COMPONENT != null &&
+    hasAuditAppFeature;
   const canAccessAlerts = useSelector(canAccessAlertsManagement);
-  const canAccessSessions = useSelector(canAccessSessionManagement);
+  const canAccessSessions =
+    useSelector(canAccessSessionManagement) &&
+    PLUGIN_MONITOR.isSessionManagementEnabled &&
+    hasSessionManagementFeature;
   const canAccessAiAuditingTab = useSelector(canAccessAiAuditing);
-  const canAccessApiKeyUsageTab = useSelector(canAccessApiKeyUsage);
+  const canAccessApiKeyUsageTab =
+    useSelector(canAccessApiKeyUsage) &&
+    PLUGIN_MONITOR.isApiKeyUsageEnabled &&
+    hasAuditAppFeature;
 
   const activeSection = getActiveSection(pathname);
 
@@ -137,7 +154,6 @@ export function MonitorLayout() {
               to={Urls.dependencyDiagnostics()}
               isSelected={activeSection === "diagnostics"}
               showLabel={isNavbarOpened}
-              isGated={!hasDependenciesFeature}
               onClick={() => trackMonitorSectionClicked("diagnostics")}
             />
           )}
@@ -148,18 +164,16 @@ export function MonitorLayout() {
               to={Urls.contentDiagnostics()}
               isSelected={activeSection === "content-diagnostics"}
               showLabel={isNavbarOpened}
-              isGated={!hasContentDiagnosticsFeature}
               onClick={() => trackMonitorSectionClicked("content-diagnostics")}
             />
           )}
-          {canAccessTools && (
+          {canAccessErroringQuestions && (
             <AreaTab
               label={t`Erroring questions`}
               icon="warning_round"
               to={Urls.monitorErroringQuestions()}
               isSelected={activeSection === "erroring-questions"}
               showLabel={isNavbarOpened}
-              isGated={!hasAuditAppFeature}
               onClick={() => trackMonitorSectionClicked("erroring-questions")}
             />
           )}
@@ -220,7 +234,6 @@ export function MonitorLayout() {
               to={Urls.monitorSessions()}
               isSelected={activeSection === "session-management"}
               showLabel={isNavbarOpened}
-              isGated={!hasSessionManagementFeature}
               onClick={() => trackMonitorSectionClicked("session-management")}
             />
           )}
@@ -231,7 +244,6 @@ export function MonitorLayout() {
               to={Urls.monitorApiKeyUsage()}
               isSelected={activeSection === "api-key-usage"}
               showLabel={isNavbarOpened}
-              isGated={!hasAuditAppFeature}
               onClick={() => trackMonitorSectionClicked("api-key-usage")}
             />
           )}
@@ -239,17 +251,18 @@ export function MonitorLayout() {
       )}
       {canAccessAiAuditingTab && hasAuditAppFeature && (
         <AreaTabGroup label={t`AI Auditing`} showLabel={isNavbarOpened}>
-          <AreaTab
-            label={t`Usage stats`}
-            icon="lineandbar"
-            to={Urls.monitorAiAuditingUsage()}
-            isSelected={activeSection === "ai-auditing-usage-stats"}
-            showLabel={isNavbarOpened}
-            isGated={!hasAiControlsFeature}
-            onClick={() =>
-              trackMonitorSectionClicked("ai-auditing-usage-stats")
-            }
-          />
+          {hasAiControlsFeature && (
+            <AreaTab
+              label={t`Usage stats`}
+              icon="lineandbar"
+              to={Urls.monitorAiAuditingUsage()}
+              isSelected={activeSection === "ai-auditing-usage-stats"}
+              showLabel={isNavbarOpened}
+              onClick={() =>
+                trackMonitorSectionClicked("ai-auditing-usage-stats")
+              }
+            />
+          )}
           {hasAiControlsFeature && (
             <AreaTab
               label={t`Conversations`}

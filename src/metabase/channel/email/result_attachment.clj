@@ -94,31 +94,41 @@
      :content      (-> attachment-file .toURI .toURL)
      :description  (format "More results for '%s'" card-name)}))
 
+(defn- limit-attachment-rows
+  "Cut `result`'s rows down to what a creator with `download-level` may download."
+  [result download-level]
+  (cond-> result
+    (and (= download-level :ten-thousand-rows)
+         (get-in result [:data :rows]))
+    (update-in [:data :rows] #(take perms/limited-download-row-limit %))))
+
 (defn result-attachment
   "Create result attachments for an email. `creator-id` is the subscription creator, whose download
-  permissions gate the attachment at send time."
+  permissions gate the attachment at send time, and limit the rows it holds."
   [{{format-rows :format_rows pivot-results :pivot_results :as card} :card
     dashcard :dashcard
     result :result
     :as part}
    creator-id]
-  (when (and (or (:include_csv card) (:include_xls card))
-             (pos-int? (:row_count result))
-             (not= (perms/download-perms-level (:dataset_query card) creator-id) :no))
-    (let [result           (:result (channel.shared/maybe-realize-data-rows part))
-          ;; the dashboard-level title override (incl. the visualizer's) names the attachment, matching the card's
-          ;; displayed title; falls back to the card's own name (see [[render.util/dashcard-title]]).
-          filename-prefix  (render.util/dashcard-title card dashcard)]
-      (when-not (:render/too-large? result)
-        (->>
-         [(when-let [temp-file (and (:include_csv card)
-                                    (create-temp-file-or-throw! "csv"))]
-            (with-open [os (io/output-stream temp-file)]
-              (stream-api-results-to-export-format! os {:export-format :csv :format-rows? format-rows :pivot? pivot-results :csv-include-bom? true} result))
-            (create-result-attachment-map "csv" filename-prefix temp-file))
-          (when-let [temp-file (and (:include_xls card)
-                                    (create-temp-file-or-throw! "xlsx"))]
-            (with-open [os (io/output-stream temp-file)]
-              (stream-api-results-to-export-format! os {:export-format :xlsx :format-rows? format-rows :pivot? pivot-results} result))
-            (create-result-attachment-map "xlsx" filename-prefix temp-file))]
-         (filterv some?))))))
+  (when-let [download-level (when (and (or (:include_csv card) (:include_xls card))
+                                       (pos-int? (:row_count result)))
+                              (perms/download-perms-level (:dataset_query card) creator-id))]
+    (when (not= download-level :no)
+      (let [result           (-> (:result (channel.shared/maybe-realize-data-rows part))
+                                 (limit-attachment-rows download-level))
+            ;; the dashboard-level title override (incl. the visualizer's) names the attachment, matching the card's
+            ;; displayed title; falls back to the card's own name (see [[render.util/dashcard-title]]).
+            filename-prefix  (render.util/dashcard-title card dashcard)]
+        (when-not (:render/too-large? result)
+          (->>
+           [(when-let [temp-file (and (:include_csv card)
+                                      (create-temp-file-or-throw! "csv"))]
+              (with-open [os (io/output-stream temp-file)]
+                (stream-api-results-to-export-format! os {:export-format :csv :format-rows? format-rows :pivot? pivot-results :csv-include-bom? true} result))
+              (create-result-attachment-map "csv" filename-prefix temp-file))
+            (when-let [temp-file (and (:include_xls card)
+                                      (create-temp-file-or-throw! "xlsx"))]
+              (with-open [os (io/output-stream temp-file)]
+                (stream-api-results-to-export-format! os {:export-format :xlsx :format-rows? format-rows :pivot? pivot-results} result))
+              (create-result-attachment-map "xlsx" filename-prefix temp-file))]
+           (filterv some?)))))))

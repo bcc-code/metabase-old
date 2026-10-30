@@ -63,23 +63,21 @@ describe("SettingsNav", () => {
     expect(await screen.findByText("Authentication")).toBeInTheDocument();
   });
 
-  it("should show Remote sync upsell nav item for non-pro plans", async () => {
-    await setup({
-      initialRoute: "/admin/settings/general",
-      tokenFeatures: {
-        "custom-viz": false,
-        "custom-viz-available": false,
-      },
-    });
+  it.each([
+    { name: "without paid features", tokenFeatures: {} },
+    {
+      name: "with no token features at all",
+      tokenFeatures: { "custom-viz": false, "custom-viz-available": false },
+    },
+  ])(
+    "should not show a Remote sync nav item when remote sync is not available ($name)",
+    async ({ tokenFeatures }) => {
+      await setup({ initialRoute: "/admin/settings/general", tokenFeatures });
 
-    expect(await screen.findByText("Remote sync")).toBeInTheDocument();
-  });
-
-  it("should hide Remote sync upsell nav item for pro plans", async () => {
-    await setup({ initialRoute: "/admin/settings/general" });
-
-    expect(screen.queryByText("Remote sync")).not.toBeInTheDocument();
-  });
+      expect(await screen.findByText("General")).toBeInTheDocument();
+      expect(screen.queryByText("Remote sync")).not.toBeInTheDocument();
+    },
+  );
 
   it("should highlight the active nav item", async () => {
     await setup({ initialRoute: "/admin/settings/general" });
@@ -158,17 +156,17 @@ describe("SettingsNav", () => {
     });
 
     expect(await screen.findByText("General")).toBeInTheDocument();
-    expect(screen.getByText("Domains")).toBeInTheDocument();
     expect(screen.getByText("Email")).toBeInTheDocument();
     expect(screen.getByText("Slack")).toBeInTheDocument();
     expect(screen.getByText("Webhooks")).toBeInTheDocument();
     expect(screen.getByText("Localization")).toBeInTheDocument();
     expect(screen.getByText("Maps")).toBeInTheDocument();
-    expect(screen.getByText("Appearance")).toBeInTheDocument();
     expect(screen.getByText("Uploads")).toBeInTheDocument();
     expect(screen.getByText("Public sharing")).toBeInTheDocument();
 
     expect(screen.queryByText("Authentication")).not.toBeInTheDocument();
+    // iframe and image hosts decide what browsers load, so they stay admin-only
+    expect(screen.queryByText("Domains")).not.toBeInTheDocument();
     expect(screen.queryByText("License")).not.toBeInTheDocument();
     expect(screen.queryByText("Updates")).not.toBeInTheDocument();
     expect(screen.queryByText("Cloud")).not.toBeInTheDocument();
@@ -191,26 +189,30 @@ describe("SettingsNav", () => {
     expect(screen.getByText("Conceal Metabase")).toBeInTheDocument();
   });
 
-  it.each([
-    { whitelabel: true, hasGem: false },
-    { whitelabel: false, hasGem: true },
-  ])(
-    "should show the upsell gem on the Appearance link only without the whitelabel feature (whitelabel: $whitelabel)",
-    async ({ whitelabel, hasGem }) => {
-      await setup({
-        initialRoute: "/admin/settings/general",
-        tokenFeatures: { whitelabel },
-      });
+  it("should show the Appearance link without an upsell gem when whitelabel is available", async () => {
+    await setup({
+      initialRoute: "/admin/settings/general",
+      tokenFeatures: { whitelabel: true },
+    });
 
-      const appearanceLink = await screen.findByRole("link", {
-        name: /Appearance/,
-      });
-      expect(appearanceLink).toHaveTextContent(/^Appearance$/);
-      expect(within(appearanceLink).queryByTestId("upsell-gem") !== null).toBe(
-        hasGem,
-      );
-    },
-  );
+    const appearanceLink = await screen.findByRole("link", {
+      name: /Appearance/,
+    });
+    expect(appearanceLink).toHaveTextContent(/^Appearance$/);
+    expect(
+      within(appearanceLink).queryByTestId("upsell-gem"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("should not show the Appearance link when whitelabel is not available", async () => {
+    await setup({
+      initialRoute: "/admin/settings/general",
+      tokenFeatures: { whitelabel: false },
+    });
+
+    expect(await screen.findByText("General")).toBeInTheDocument();
+    expect(screen.queryByText("Appearance")).not.toBeInTheDocument();
+  });
 
   it("should hide Authentication and Python Runner from settings managers even with related tokens", async () => {
     await setup({
@@ -237,11 +239,22 @@ describe("SettingsNav", () => {
     );
   });
 
-  it("should show License and Updates to admins", async () => {
+  it.each([{ isHosted: false }, { isHosted: true }])(
+    "should not show License or Cloud to admins (hosted: $isHosted)",
+    async ({ isHosted }) => {
+      await setup({ initialRoute: "/admin/settings/general", isHosted });
+
+      expect(await screen.findByText("General")).toBeInTheDocument();
+      expect(screen.queryByText("License")).not.toBeInTheDocument();
+      expect(screen.queryByText("Cloud")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("upsell-gem")).not.toBeInTheDocument();
+    },
+  );
+
+  it("should show Updates to admins of self-hosted instances", async () => {
     await setup({ initialRoute: "/admin/settings/general" });
 
-    expect(await screen.findByText("License")).toBeInTheDocument();
-    expect(screen.getByText("Updates")).toBeInTheDocument();
+    expect(await screen.findByText("Updates")).toBeInTheDocument();
   });
 
   it("should show Development nav item when custom viz dev mode is enabled", async () => {

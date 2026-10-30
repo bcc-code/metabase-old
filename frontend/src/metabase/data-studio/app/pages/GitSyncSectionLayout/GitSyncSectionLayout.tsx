@@ -1,16 +1,18 @@
 import { t } from "ttag";
 
-import { useHasTokenFeature } from "metabase/common/hooks";
-import { RemoteSyncUpsellPage } from "metabase/data-studio/upsells/pages/RemoteSyncUpsellPage";
+import { PageContainer } from "metabase/common/data-studio/components/PageContainer";
 import { usePageTitle } from "metabase/hooks/use-page-title";
+import { PLUGIN_REMOTE_SYNC } from "metabase/plugins";
+import { Box } from "metabase/ui";
 
 export function GitSyncSectionLayout() {
   usePageTitle(t`Git sync`);
-  const hasRemoteSyncFeature = useHasTokenFeature("remote_sync");
 
-  if (!hasRemoteSyncFeature) {
-    return <RemoteSyncUpsellPage />;
-  }
-
-  return null;
+  return (
+    <PageContainer>
+      <Box maw="60rem" w="100%" mx="auto" py="lg">
+        <PLUGIN_REMOTE_SYNC.RemoteSyncSettings />
+      </Box>
+    </PageContainer>
+  );
 }

@@ -421,6 +421,9 @@ const elements = [
   }),
   // NewModals is composition glue rendered at the app root, wiring in the app-tier embed wizard.
   createElement({ type: "app", name: "new" }),
+  // This fork's own implementations of features upstream reserves for its paid edition. Like the EE plugin
+  // bootstrap, it fills plugin slots from the app root, so it is app tier.
+  createElement({ type: "app", name: "fork" }),
   // Loose files living directly under frontend/src/metabase that have not yet
   // been pulled into a module folder.
   ...["frontend/src/metabase/dev.ts", "frontend/src/metabase/dev-noop.ts"].map(

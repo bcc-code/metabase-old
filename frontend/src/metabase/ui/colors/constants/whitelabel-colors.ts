@@ -1,3 +1,5 @@
+import Color from "color";
+
 import type {
   ColorSettings,
   ColorSettingsAccentKey,
@@ -62,4 +64,65 @@ export function mapWhitelabelColorsToTokens(
   }
 
   return tokens;
+}
+
+/**
+ * The whitelabel tokens that the dark color scheme also uses as text and icon
+ * colors on the page background.
+ */
+const DARK_SCHEME_READABLE_KEYS = [
+  "core-brand",
+  "core-filter",
+  "core-summarize",
+] as const satisfies readonly WhitelabelColorKey[];
+
+const MIN_TEXT_CONTRAST_RATIO = 4.5;
+const LIGHTNESS_STEP = 2;
+const MAX_LIGHTNESS = 100;
+
+/**
+ * Adapts whitelabel tokens to the dark color scheme. A brand, filter or
+ * summarize color that is too dark to read on `background` is lightened until
+ * it reaches a 4.5:1 contrast ratio, so a dark brand color picked for the light
+ * scheme stays legible. Other tokens, and colors that cannot be parsed, are
+ * returned unchanged.
+ */
+export function adaptWhitelabelTokensToDarkScheme(
+  tokens: ColorPalette,
+  background: string,
+): ColorPalette {
+  const adapted: ColorPalette = { ...tokens };
+
+  for (const key of DARK_SCHEME_READABLE_KEYS) {
+    const value = tokens[key];
+    if (value !== undefined) {
+      adapted[key] = getReadableColor(value, background);
+    }
+  }
+
+  return adapted;
+}
+
+function getReadableColor(value: string, background: string): string {
+  try {
+    const backgroundColor = Color(background);
+    let color = Color(value);
+
+    if (color.contrast(backgroundColor) >= MIN_TEXT_CONTRAST_RATIO) {
+      return value;
+    }
+
+    while (
+      color.contrast(backgroundColor) < MIN_TEXT_CONTRAST_RATIO &&
+      color.lightness() < MAX_LIGHTNESS
+    ) {
+      color = color.lightness(
+        Math.min(MAX_LIGHTNESS, color.lightness() + LIGHTNESS_STEP),
+      );
+    }
+
+    return color.hex();
+  } catch {
+    return value;
+  }
 }

@@ -3,6 +3,8 @@ import { SETTINGS_INDEX_SLUG } from "metabase/urls";
 /**
  * Pages under /admin/settings that settings managers may open, by slug. Matching is
  * exact, so a page nested under an allowed one is admin-only until listed here.
+ * Domains is admin-only: its iframe and image hosts decide what content
+ * browsers load, which the backend keeps from settings managers.
  */
 export const SETTINGS_MANAGER_PATHS: ReadonlySet<string> = new Set([
   "general",
@@ -13,7 +15,6 @@ export const SETTINGS_MANAGER_PATHS: ReadonlySet<string> = new Set([
   "maps",
   "uploads",
   "public-sharing",
-  "domains",
   "appearance",
   "whitelabel",
   "whitelabel/branding",

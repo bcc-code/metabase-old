@@ -48,17 +48,15 @@ function setup({ hasContentTranslation = false }: SetupOpts = {}) {
 }
 
 describe("EmbeddingHubLocalizationPage", () => {
-  it("upsells when content translation is not licensed", async () => {
+  it("renders not found when content translation is not available", async () => {
     setup({ hasContentTranslation: false });
 
     expect(
-      await screen.findByText("Translate your embedded content"),
+      await screen.findByText("We're a little lost..."),
     ).toBeInTheDocument();
     expect(
-      await screen.findByText(
-        "Upload a translation dictionary to translate content such as item titles, headings, filter labels, and data in your embedded components.",
-      ),
-    ).toBeInTheDocument();
+      screen.queryByText("Translate your embedded content"),
+    ).not.toBeInTheDocument();
 
     expect(
       screen.queryByText("Translate embedded dashboards and questions"),
@@ -77,8 +75,8 @@ describe("EmbeddingHubLocalizationPage", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("keeps the tab's own title on both editions", async () => {
-    setup({ hasContentTranslation: false });
+  it("keeps the tab's own title", async () => {
+    setup({ hasContentTranslation: true });
 
     expect(
       await screen.findByRole("heading", { name: "Localization" }),

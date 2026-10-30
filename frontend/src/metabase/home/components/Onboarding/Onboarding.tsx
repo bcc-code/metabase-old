@@ -134,7 +134,7 @@ export const Onboarding = () => {
               <Box className={S.support} data-testid="help-section" p="xl">
                 <Stack gap="xxs">
                   <Title order={4}>{t`Need to talk with someone?`}</Title>
-                  <Text>{t`Reach out to engineers who can help with technical troubleshooting. Not your typical support agents.`}</Text>
+                  <Text>{t`Get help with technical troubleshooting.`}</Text>
                 </Stack>
                 <Button
                   component={ExternalLink}

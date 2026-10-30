@@ -1,0 +1,81 @@
+## Custom visualizations that admins install as single, self-contained JavaScript bundles (the AGPL `custom-viz`
+## module). Each row holds the bundle source, its SHA-256 hash (the browser caches the bundle by it) and the manifest
+## parsed from the bundle's leading `metabase-custom-viz` comment. Questions that use one store the display type
+## `custom:<identifier>`.
+
+databaseChangeLog:
+  - changeSet:
+      id: cvz4q7
+      author: bcc
+      comment: Create the custom_visualization table for admin-installed visualization bundles
+      changes:
+        - createTable:
+            tableName: custom_visualization
+            remarks: Custom visualizations installed by admins, each a single self-contained JavaScript bundle
+            columns:
+              - column:
+                  name: id
+                  type: int
+                  autoIncrement: true
+                  remarks: Unique ID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: identifier
+                  type: varchar(254)
+                  remarks: Identifier from the bundle manifest; questions using the visualization have display custom:<identifier>
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: display_name
+                  type: varchar(254)
+                  remarks: Name shown in the visualization picker, from the bundle manifest
+                  constraints:
+                    nullable: false
+              - column:
+                  name: icon
+                  type: varchar(254)
+                  remarks: Name of the Metabase icon shown for the visualization, from the bundle manifest
+                  constraints:
+                    nullable: true
+              - column:
+                  name: manifest
+                  type: ${text.type}
+                  remarks: JSON manifest parsed from the bundle's leading metabase-custom-viz comment
+                  constraints:
+                    nullable: false
+              - column:
+                  name: bundle
+                  type: ${text.type}
+                  remarks: JavaScript source of the bundle
+                  constraints:
+                    nullable: false
+              - column:
+                  name: bundle_hash
+                  type: varchar(64)
+                  remarks: SHA-256 hex digest of the bundle, used as its cache key
+                  constraints:
+                    nullable: false
+              - column:
+                  name: enabled
+                  type: ${boolean.type}
+                  defaultValueBoolean: true
+                  remarks: Whether people can use the visualization in questions and dashboards
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: ${timestamp_type}
+                  defaultValueComputed: current_timestamp
+                  remarks: When the visualization was installed
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: ${timestamp_type}
+                  defaultValueComputed: current_timestamp
+                  remarks: When the visualization or its bundle last changed
+                  constraints:
+                    nullable: false

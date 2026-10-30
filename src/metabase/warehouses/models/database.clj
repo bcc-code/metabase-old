@@ -159,10 +159,16 @@
             (perms/user-has-published-table-permission-for-database? database-id)))))
 
 (defenterprise current-user-can-write-db?
-  "OSS implementation. Returns a boolean whether the current user can write the given field."
+  "Whether the current user may manage the database with `db-id` -- edit its connection details and settings, sync it
+  and scan its field values: admins, and with the advanced-permissions feature anyone one of whose groups has the
+  manage database permission for it."
   metabase-enterprise.advanced-permissions.common
-  [_db-id]
-  (mi/superuser?))
+  [db-id]
+  (boolean
+   (or (mi/superuser?)
+       (and (premium-features/enable-advanced-permissions?)
+            api/*current-user-id*
+            (perms/user-has-permission-for-database? api/*current-user-id* :perms/manage-database :yes db-id)))))
 
 (defn- can-write?
   [db-id]

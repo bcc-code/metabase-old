@@ -1,6 +1,7 @@
 (ns metabase.metabot.settings
   (:require
    [clojure.string :as str]
+   [metabase.api.common :as api]
    [metabase.llm.provider :as llm.provider]
    [metabase.llm.settings :as llm.settings]
    [metabase.metabot.self.google :as google]
@@ -120,6 +121,20 @@
   :visibility :internal
   :default    true
   :export?    false)
+
+(defsetting metabot-show-sql-errors
+  (deferred-tru "Whether to show the SQL and database errors of queries Metabot writes. When off, Metabot runs the SQL it writes once before showing it, fixes it itself when the database rejects it, and failing charts say so in plain words.")
+  :user-local :only
+  :visibility :authenticated
+  :type       :boolean
+  :export?    false
+  :audit      :never
+  ;; Admins see them unless they turn them off; everyone else doesn't unless they turn them on.
+  :getter     (fn []
+                (let [value (setting/get-value-of-type :boolean :metabot-show-sql-errors)]
+                  (if (some? value)
+                    value
+                    (boolean api/*is-superuser?*)))))
 
 (defsetting metabot-eval-profiles-enabled?
   "Whether Metabot accepts the profiles that exist only for evals, such as one that answers only in SQL. Set it only on instances that run evals."

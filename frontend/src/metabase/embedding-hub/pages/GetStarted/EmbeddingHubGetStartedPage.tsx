@@ -1,11 +1,9 @@
 import cx from "classnames";
 import { useCallback, useMemo, useState } from "react";
-import { match } from "ts-pattern";
 import { t } from "ttag";
 
 import { ExternalLink } from "metabase/common/components/ExternalLink";
 import { useDocsUrl, useHasTokenFeature } from "metabase/common/hooks";
-import { EmbeddingHubUpsellBanner } from "metabase/embedding-hub/components/EmbeddingHubUpsellBanner";
 import {
   useCompletedSetupGuideSteps,
   useSetupGuideModals,
@@ -84,36 +82,35 @@ export function EmbeddingHubGetStartedPage() {
   const hasSsoJwt = useHasTokenFeature("sso_jwt");
   const hasTenants = useHasTokenFeature("tenants");
 
-  // A locked step carries a reason only when the prerequisite is actionable.
-  // Feature-locked steps leave it out: naming a prerequisite would imply the
-  // step is reachable, and the upsell banner already says what it takes.
+  // Only an actionable prerequisite locks a step. Steps that need a feature
+  // this instance lacks are left out altogether rather than shown locked.
   const lockedSteps: Partial<
     Record<SetupGuideStepId, { isLocked: boolean; reason?: string }>
-  > = useMemo(() => {
-    const isSsoConfigured = completedSteps["sso-configured"];
-
-    return {
-      "data-permissions-and-enable-tenants": { isLocked: !hasTenants },
-      "sso-configured": { isLocked: !hasSsoJwt },
-      "embed-production": match({ hasSsoJwt, isSsoConfigured })
-        .with({ hasSsoJwt: false }, () => ({ isLocked: true }))
-        .with({ isSsoConfigured: false }, () => ({
-          isLocked: true,
-          reason: t`Set up SSO to unlock`,
-        }))
-        .otherwise(() => ({ isLocked: false })),
-    };
-  }, [completedSteps, hasSsoJwt, hasTenants]);
+  > = useMemo(
+    () => ({
+      "embed-production": completedSteps["sso-configured"]
+        ? { isLocked: false }
+        : { isLocked: true, reason: t`Set up SSO to unlock` },
+    }),
+    [completedSteps],
+  );
 
   const baseEmbedSteps = useMemo(
     () =>
       getBaseEmbedSteps({ setOpenedModal, openEmbedModal, hasSimpleEmbedding }),
     [setOpenedModal, openEmbedModal, hasSimpleEmbedding],
   );
-  const fineTuneSteps = useMemo(
-    () => getFineTuneSteps({ openEmbedModal }),
-    [openEmbedModal],
-  );
+  const fineTuneSteps = useMemo(() => {
+    const isStepAvailable: Partial<Record<SetupGuideStepId, boolean>> = {
+      "data-permissions-and-enable-tenants": hasTenants,
+      "sso-configured": hasSsoJwt,
+      "embed-production": hasSsoJwt,
+    };
+
+    return getFineTuneSteps({ openEmbedModal }).filter(
+      (step) => isStepAvailable[step.id] ?? true,
+    );
+  }, [openEmbedModal, hasTenants, hasSsoJwt]);
 
   function renderCard(card: HubCard, position: number) {
     switch (card.type) {
@@ -141,7 +138,6 @@ export function EmbeddingHubGetStartedPage() {
           <ThemeCard
             key="custom-theme"
             step={position}
-            isLocked={!hasSimpleEmbedding}
             isDone={completedSteps["create-custom-theme"]}
           />
         );
@@ -156,17 +152,17 @@ export function EmbeddingHubGetStartedPage() {
     }
   }
 
-  // Without modular embedding every Fine-tune step is locked, and AI is the one
-  // advanced step still reachable -- so the design promotes it into the first
-  // section.
+  // Without modular embedding AI is the one advanced step every instance has,
+  // so the design promotes it into the first section.
   const firstSection: HubCard[] = [
     ...baseEmbedSteps.map((step): HubCard => ({ type: "step", step })),
     ...(hasSimpleEmbedding ? [] : [{ type: "ai" as const }]),
   ];
   const fineTuneSection: HubCard[] = [
     ...fineTuneSteps.map((step): HubCard => ({ type: "step", step })),
-    { type: "theme" },
-    ...(hasSimpleEmbedding ? [{ type: "ai" as const }] : []),
+    ...(hasSimpleEmbedding
+      ? [{ type: "theme" as const }, { type: "ai" as const }]
+      : []),
   ];
 
   return (
@@ -192,33 +188,30 @@ export function EmbeddingHubGetStartedPage() {
         </Box>
       </Stack>
 
-      <Stack gap="lg">
-        <Box>
-          <Title order={3} c="text-primary">{t`Fine-tune your embed`}</Title>
+      {fineTuneSection.length > 0 && (
+        <Stack gap="lg">
+          <Box>
+            <Title order={3} c="text-primary">{t`Fine-tune your embed`}</Title>
 
-          {hasSimpleEmbedding ? (
-            <Text c="text-secondary" mt={4}>
-              {t`If you have a more sophisticated setup in mind, with many users and tenants, then keep going.`}
-            </Text>
-          ) : (
-            <Box mt="lg">
-              <EmbeddingHubUpsellBanner
-                title={t`Upgrade to Metabase Pro to configure advanced options.`}
-                campaign={UTM_CAMPAIGN}
-                location={UTM_CONTENT}
-              />
-            </Box>
-          )}
-        </Box>
+            {hasSimpleEmbedding && (
+              <Text c="text-secondary" mt={4}>
+                {t`If you have a more sophisticated setup in mind, with many users and tenants, then keep going.`}
+              </Text>
+            )}
+          </Box>
 
-        <Box
-          className={cx(S.cardGrid, !hasSimpleEmbedding && S.cardGridTwoColumn)}
-        >
-          {fineTuneSection.map((card, index) =>
-            renderCard(card, firstSection.length + index + 1),
-          )}
-        </Box>
-      </Stack>
+          <Box
+            className={cx(
+              S.cardGrid,
+              !hasSimpleEmbedding && S.cardGridTwoColumn,
+            )}
+          >
+            {fineTuneSection.map((card, index) =>
+              renderCard(card, firstSection.length + index + 1),
+            )}
+          </Box>
+        </Stack>
+      )}
 
       <UsefulLinksSection />
 
@@ -299,19 +292,10 @@ function getFineTuneSteps({
  * puts on the home page for admins while the `embedding-homepage` setting is
  * visible. That page keeps the shared steps only, so these two live here.
  */
-function ThemeCard({
-  step,
-  isLocked,
-  isDone,
-}: {
-  step: number;
-  isLocked: boolean;
-  isDone: boolean;
-}) {
+function ThemeCard({ step, isDone }: { step: number; isDone: boolean }) {
   return (
     <ChecklistCard
       step={step}
-      isLocked={isLocked}
       isDone={isDone}
       icon="palette"
       title={t`Create a custom theme`}

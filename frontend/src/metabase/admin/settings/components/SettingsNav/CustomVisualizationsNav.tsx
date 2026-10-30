@@ -1,22 +1,18 @@
 import { t } from "ttag";
 
-import { UpsellGem } from "metabase/common/components/upsells/components";
-import { useHasTokenFeature } from "metabase/common/hooks";
 import { useLocation } from "metabase/router";
 import { useSetting } from "metabase/settings";
-import { Flex } from "metabase/ui";
 import * as Urls from "metabase/urls";
 
 import { SettingsNavItem } from "./SettingsNavItem";
 
 export const CustomVisualizationsNav = () => {
-  const hasCustomVizAvailable = useHasTokenFeature("custom-viz-available");
   const customVizDevModeEnabled = useSetting(
     "custom-viz-plugin-dev-mode-enabled",
   );
 
   const pathname = useLocation().pathname;
-  const hasSubNav = hasCustomVizAvailable && customVizDevModeEnabled;
+  const hasSubNav = customVizDevModeEnabled;
   const isManageVisualizationsActive =
     pathname.startsWith(Urls.customVizAdd()) ||
     pathname.startsWith(Urls.customVizEdit(undefined));
@@ -26,12 +22,7 @@ export const CustomVisualizationsNav = () => {
       active={isManageVisualizationsActive && !hasSubNav ? true : undefined}
       path={hasSubNav ? undefined : "custom-visualizations"}
       folderPattern="custom-visualizations"
-      label={
-        <Flex gap="sm" align="center">
-          <span>{t`Custom visualizations`}</span>
-          {!hasCustomVizAvailable && <UpsellGem />}
-        </Flex>
-      }
+      label={t`Custom visualizations`}
       icon="bar"
     >
       {hasSubNav && (

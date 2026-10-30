@@ -40,3 +40,12 @@ export function setupPerformanceEndpoints(cacheConfigs: CacheConfig[]) {
 export function setupPerformanceEndpointsError() {
   fetchMock.get("path:/api/cache", 500);
 }
+
+export function setupInvalidateCacheEndpoint({ status = 200 } = {}) {
+  fetchMock.post(
+    "path:/api/cache/invalidate",
+    status === 200
+      ? { count: 1, message: "Cleared a cached result." }
+      : { status, body: { message: "Cache could not be cleared" } },
+  );
+}

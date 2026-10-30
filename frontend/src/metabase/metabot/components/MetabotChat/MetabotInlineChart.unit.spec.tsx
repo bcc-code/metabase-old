@@ -9,6 +9,7 @@ import {
   setupDatabasesEndpoints,
   setupRecentViewsAndSelectionsEndpoints,
 } from "__support__/server-mocks";
+import { createMockSettingsState } from "__support__/state";
 import {
   act,
   renderWithProviders,
@@ -76,7 +77,10 @@ function setupSaveModalEndpoints() {
 function setup(
   args: Parameters<typeof setupCardDataset>[0] = {},
   valueOverrides: Partial<GeneratedCard> = {},
-  { readonly = false }: { readonly?: boolean } = {},
+  {
+    readonly = false,
+    showSqlErrors = false,
+  }: { readonly?: boolean; showSqlErrors?: boolean } = {},
 ) {
   setupCardDataset(args);
   return renderWithProviders(
@@ -86,6 +90,13 @@ function setup(
       conversationId="convo-1"
       size="md"
     />,
+    {
+      storeInitialState: {
+        settings: createMockSettingsState({
+          "metabot-show-sql-errors": showSqlErrors,
+        }),
+      },
+    },
   );
 }
 
@@ -166,7 +177,23 @@ describe("MetabotInlineChart", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows the curated error text when present", async () => {
+  it("shows the curated error text to people who see SQL errors", async () => {
+    setup(
+      {
+        dataset: {
+          error: "Column FOO does not exist",
+          error_is_curated: true,
+        },
+      },
+      {},
+      { showSqlErrors: true },
+    );
+    expect(
+      await screen.findByText("Column FOO does not exist"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the generic message instead of a database error to people who don't see SQL errors", async () => {
     setup({
       dataset: {
         error: "Column FOO does not exist",
@@ -174,7 +201,24 @@ describe("MetabotInlineChart", () => {
       },
     });
     expect(
-      await screen.findByText("Column FOO does not exist"),
+      await screen.findByText("There was a problem displaying this chart."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Column FOO does not exist"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("still explains a missing permission to people who don't see SQL errors", async () => {
+    setup({
+      dataset: {
+        error: "no access",
+        error_type: "missing-required-permissions",
+      },
+    });
+    expect(
+      await screen.findByText(
+        "Sorry, you don't have permission to see this card.",
+      ),
     ).toBeInTheDocument();
   });
 

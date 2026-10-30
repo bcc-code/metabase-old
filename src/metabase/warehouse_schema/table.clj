@@ -35,13 +35,23 @@
                 (update field :values field-values/field-values->pairs)
                 field)))))
 
+(defn- current-user-can-edit-table-metadata?
+  [{db-id :db_id table-id :id}]
+  (boolean
+   (and api/*current-user-id*
+        (perms/user-has-permission-for-table? api/*current-user-id* :perms/manage-table-metadata :yes db-id table-id))))
+
 (defenterprise filter-tables-by-data-model-perms
   "Given a list of tables, removes the ones for which the current user does not have data model editing permissions.
-  Admin-only without the advanced-permissions feature. Data model reads, sensitive fields and FK targets rely on this
-  filter alone, so it must keep nothing the user cannot edit."
+  Admin-only without the advanced-permissions feature; with it, keeps the tables one of the user's groups may manage
+  the metadata of. Data model reads, sensitive fields and FK targets rely on this filter alone, so it must keep
+  nothing the user cannot edit."
   metabase-enterprise.advanced-permissions.common
   [tables]
-  (if (mi/superuser?) tables (empty tables)))
+  (cond
+    (mi/superuser?)                                 tables
+    (premium-features/enable-advanced-permissions?) (filterv current-user-can-edit-table-metadata? tables)
+    :else                                           (empty tables)))
 
 (defn check-data-model-perms
   "Return `table`, or throw a 403 unless the current user has data model editing permissions for it."
@@ -113,12 +123,26 @@
              present-table
              (update :fields #(remove (comp excluded-visibility-types :visibility_type) %))))))))
 
+(defenterprise filter-sandboxed-fields
+  "Filter `fields` to those visible to the current user under their column-restricting sandbox on `table-id`."
+  metabase-enterprise.sandbox.api.column-filter
+  [table-id fields]
+  ((requiring-resolve 'metabase.data-access.core/filter-sandboxed-fields) table-id fields))
+
+(defenterprise batch-filter-sandboxed-fields
+  "Filter the `{table-id => fields}` map per the current user's sandbox configuration."
+  metabase-enterprise.sandbox.api.column-filter
+  [fields-by-table]
+  ((requiring-resolve 'metabase.data-access.core/batch-filter-sandboxed-fields) fields-by-table))
+
 (defenterprise fetch-table-query-metadata
   "Returns the query metadata used to power the Query Builder for the given table `id`. `include-sensitive-fields?`,
   `include-hidden-fields?` and `include-editable-data-model?` can be either booleans or boolean strings."
   metabase-enterprise.sandbox.api.table
   [id opts]
-  (fetch-query-metadata* (warehouse-schema.db/table id) opts))
+  (let [table (fetch-query-metadata* (warehouse-schema.db/table id) opts)]
+    (cond-> table
+      (:fields table) (update :fields #(filter-sandboxed-fields id %)))))
 
 (defenterprise batch-fetch-table-query-metadatas
   "Returns the query metadatas used to power the Query Builder for the tables specified by `ids`.
@@ -127,42 +151,58 @@
       user can edit the data model of (default false)"
   metabase-enterprise.sandbox.api.table
   [ids opts]
-  (batch-fetch-query-metadatas* ids opts))
-
-(defenterprise filter-sandboxed-fields
-  "Filter `fields` to those visible to the current user under their column-restricting sandbox on `table-id`.
-  OSS no-op; the real implementation lives in `metabase-enterprise.sandbox.api.column-filter`."
-  metabase-enterprise.sandbox.api.column-filter
-  [_table-id fields]
-  fields)
-
-(defenterprise batch-filter-sandboxed-fields
-  "Filter the `{table-id => fields}` map per the current user's sandbox configuration.
-  OSS no-op; the real implementation lives in `metabase-enterprise.sandbox.api.column-filter`."
-  metabase-enterprise.sandbox.api.column-filter
-  [fields-by-table]
-  fields-by-table)
+  (let [tables          (batch-fetch-query-metadatas* ids opts)
+        fields-by-table (batch-filter-sandboxed-fields (into {} (map (juxt :id :fields)) tables))]
+    (map (fn [table]
+           (cond-> table
+             (:fields table) (assoc :fields (get fields-by-table (:id table)))))
+         tables)))
 
 (defenterprise current-user-can-manage-schema-metadata?
   "Returns a boolean whether the current user has permission to edit table metadata for any tables in the schema.
-  On OSS, this is only available to admins."
+  Admin-only without the advanced-permissions feature."
   metabase-enterprise.advanced-permissions.common
-  [_db-id _schema-name]
-  (mi/superuser?))
+  [db-id schema-name]
+  (boolean
+   (or (mi/superuser?)
+       (and (premium-features/enable-advanced-permissions?)
+            (perms/user-has-permission-for-schema? api/*current-user-id* :perms/manage-table-metadata :yes
+                                                   db-id schema-name)))))
 
 (defenterprise filter-schema-by-data-model-perms
   "Given a list of `{:db_id ... :schema ...}` maps, removes the ones for which the current user does not have data
-  model editing permissions. Admin-only on OSS."
+  model editing permissions for any table. Admin-only without the advanced-permissions feature."
   metabase-enterprise.advanced-permissions.common
   [schemas]
-  (if (mi/superuser?) schemas (empty schemas)))
+  (cond
+    (mi/superuser?)                                 schemas
+    (premium-features/enable-advanced-permissions?) (filterv (fn [{db-id :db_id schema-name :schema}]
+                                                               (current-user-can-manage-schema-metadata? db-id schema-name))
+                                                             schemas)
+    :else                                           (empty schemas)))
+
+(defn- current-user-can-edit-any-table-metadata-in-db?
+  [db-id]
+  (= :yes (perms/most-permissive-database-permission-for-user api/*current-user-id* :perms/manage-table-metadata db-id)))
 
 (defenterprise filter-databases-by-data-model-perms
   "Given a list of databases, removes the ones for which the current user has no data model editing permissions. If
-  the databases are hydrated with their tables, also removes the tables the user cannot edit. Admin-only on OSS."
+  the databases are hydrated with their tables, also removes the tables the user cannot edit. Admin-only without the
+  advanced-permissions feature."
   metabase-enterprise.advanced-permissions.common
   [dbs]
-  (if (mi/superuser?) dbs (empty dbs)))
+  (cond
+    (mi/superuser?)
+    dbs
+
+    (premium-features/enable-advanced-permissions?)
+    (into []
+          (comp (filter (comp current-user-can-edit-any-table-metadata-in-db? :id))
+                (map #(m/update-existing % :tables filter-tables-by-data-model-perms)))
+          dbs)
+
+    :else
+    (empty dbs)))
 
 (defn can-read-schema?
   "Does the current user have permissions to know the schema with `schema-name` exists? (Do they have permissions to see

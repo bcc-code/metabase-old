@@ -42,6 +42,23 @@
                            [:monitoring   {:optional true} [:enum :yes :no]]
                            [:subscription {:optional true} [:enum :yes :no]]]])
 
+(mr/def ::application-permissions-graph
+  "The application permissions of every group, with the revision they were read at."
+  [:map {:closed true}
+   [:revision nat-int?]
+   [:groups   [:map-of ms/PositiveInt [:map {:closed true}
+                                        [:setting      [:enum :yes :no]]
+                                        [:monitoring   [:enum :yes :no]]
+                                        [:subscription [:enum :yes :no]]]]]])
+
+(mr/def ::application-permissions-graph.update
+  "A new application permissions graph, based on the one read at `:revision`. Groups and permission types left out
+  are not changed. `:force` skips the check that nobody has changed the graph since `:revision`."
+  [:map {:closed true}
+   [:revision nat-int?]
+   [:force    {:optional true} [:maybe :boolean]]
+   [:groups   ::application-permissions-graph.groups]])
+
 (mr/def ::application-permissions-revision.before
   "The `:before` column of a ApplicationPermissionsRevision, decoded."
   ::application-permissions-graph.groups)

@@ -505,6 +505,7 @@
 
   cache
   {:team "UX West"
+   :module-exports #{cache.refresh}
    :api  #{metabase.cache.api
            metabase.cache.core
            metabase.cache.init}
@@ -517,13 +518,34 @@
            premium-features
            request
            settings
-           util
-           util.config}
+           task
+           util}
    :model-exports #{:model/CacheConfig :model/QueryCache}
    :model-imports #{:model/Card
                     :model/Dashboard
                     :model/DashboardCard
                     :model/Database}}
+
+  cache.refresh
+  {:team "BCC"
+   :api  #{metabase.cache.refresh.init}
+   :uses #{app-db
+           cache
+           data-access
+           lib
+           lib.schema
+           premium-features
+           query-processor
+           request
+           task
+           util}
+   :model-imports #{:model/CacheConfig
+                    :model/Card
+                    :model/Dashboard
+                    :model/DashboardCard
+                    :model/DashboardCardSeries
+                    :model/Query
+                    :model/QueryExecution}}
 
   ;; TODO -- way too many API namespaces.
   channel
@@ -774,6 +796,15 @@
            util
            util.config}}
 
+  custom-viz
+  {:team "BCC"
+   :api  #{metabase.custom-viz.api}
+   :uses #{api
+           events
+           models
+           premium-features
+           util}}
+
   dashboards
   {:team "UX West"
    :api  #{metabase.dashboards.autoplace
@@ -875,6 +906,31 @@
                     :model/PulseChannel
                     :model/PulseChannelRecipient
                     :model/Query
+                    :model/User}}
+
+  data-access
+  {:team "BCC"
+   :api #{metabase.data-access.api
+          metabase.data-access.core}
+   :uses #{analytics
+           api
+           driver
+           lib
+           lib.be
+           lib.metadata
+           lib.schema
+           permissions
+           premium-features
+           query-permissions
+           query-processor
+           request
+           users.tenants
+           util
+           warehouse-schema-overlay}
+   :model-imports #{:model/ConnectionImpersonation
+                    :model/PermissionsGroupMembership
+                    :model/Sandbox
+                    :model/Table
                     :model/User}}
 
   data-apps
@@ -987,6 +1043,7 @@
            appearance
            audit-app
            auth-provider
+           data-access
            database-routing
            events
            lib
@@ -2010,11 +2067,13 @@
            app-db
            audit-app
            collections
+           data-access
            events
            lib.metadata
            lib.schema
            models
            premium-features
+           query-permissions
            remote-sync
            settings
            tracing
@@ -2023,8 +2082,7 @@
            util.config
            warehouse-schema-overlay
            warehouses
-           warehouses.schema
-           enterprise/permissions}
+           warehouses.schema}
    :model-exports #{:model/ApplicationPermissionsRevision
                     :model/CollectionPermissionGraphRevision
                     :model/DataPermissions
@@ -2044,6 +2102,7 @@
    :api  #{metabase.permissions-rest.api}
    :uses #{api
            audit-app
+           data-access
            events
            lib.schema
            permissions
@@ -2216,6 +2275,7 @@
            collections
            content-verification
            dashboards
+           data-access
            documents
            embedding
            events
@@ -2372,6 +2432,7 @@
            batch-processing
            cache
            dashboards
+           data-access
            data-apps
            database-routing
            driver
@@ -2454,15 +2515,21 @@
 
   remote-sync
   {:team "UX West"
-   :api  #{metabase.remote-sync.core
+   :api  #{metabase.remote-sync.api
+           metabase.remote-sync.core
            metabase.remote-sync.init}
    :uses #{api
+           app-db
+           collections
            events
            lib.schema
            models
            premium-features
+           settings
+           task
+           task.history
            util}
-   :model-imports #{:model/Collection}}
+   :model-imports #{:model/Collection :model/NativeQuerySnippet :model/User}}
 
   request
   {:team "UX West"
@@ -3285,8 +3352,7 @@
            system
            users.tenants
            util
-           util.config
-           enterprise/permissions}
+           util.config}
    :model-exports #{:model/User :model/UserParameterValue}
    :model-imports #{:model/Dashboard
                     :model/Database
@@ -3316,8 +3382,7 @@
            users
            users.tenants
            util
-           util.config
-           enterprise/permissions}
+           util.config}
    :model-imports #{:model/Card
                     :model/Collection
                     :model/Dashboard
@@ -3459,6 +3524,7 @@
            app-db
            audit-app
            collections
+           data-access
            database-routing
            driver
            lib
@@ -4242,7 +4308,7 @@
    :module-exports #{enterprise/permissions.debug
                      enterprise/permissions.impersonation
                      enterprise/permissions.sandbox}
-   :api #{metabase-enterprise.advanced-permissions.api.routes metabase-enterprise.advanced-permissions.common metabase-enterprise.advanced-permissions.models.permissions.group-manager}
+   :api #{metabase-enterprise.advanced-permissions.api.routes metabase-enterprise.advanced-permissions.common}
    :uses #{api
            audit-app
            lib

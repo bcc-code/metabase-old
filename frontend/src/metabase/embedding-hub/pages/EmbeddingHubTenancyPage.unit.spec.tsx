@@ -56,15 +56,15 @@ function setup({ hasTenants = false, isUsingTenants = false }: SetupOpts = {}) {
 
 describe("EmbeddingHubTenancyPage", () => {
   describe("not licensed", () => {
-    it("upsells and offers nothing to turn on", async () => {
+    it("renders not found and offers nothing to turn on", async () => {
       setup({ hasTenants: false });
 
       expect(
-        await screen.findByText("Use a multi-tenant user strategy"),
+        await screen.findByText("We're a little lost..."),
       ).toBeInTheDocument();
       expect(
-        screen.getByText(/Securely share data with external users/),
-      ).toBeInTheDocument();
+        screen.queryByText("Use a multi-tenant user strategy"),
+      ).not.toBeInTheDocument();
 
       expect(
         screen.queryByRole("button", { name: "Enable multi-tenancy" }),
@@ -76,7 +76,7 @@ describe("EmbeddingHubTenancyPage", () => {
   });
 
   describe("licensed but tenancy is off", () => {
-    it("shows the enable card instead of the upsell or the listing", async () => {
+    it("shows the enable card instead of the listing", async () => {
       setup({ hasTenants: true, isUsingTenants: false });
 
       expect(

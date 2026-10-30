@@ -230,18 +230,13 @@
     ~dashboard
     (fn [~binding] ~@body)))
 
-(def ^:private slack-branding-text
-  {:text "Made with Metabase :blue_heart:"
-   :type "mrkdwn"})
-
 (defn- default-slack-blocks
   [dashboard-id card-ids]
   (concat
    [{:type "header" :text {:type "plain_text" :text "Aviary KPIs" :emoji true}}
     {:type "section"
      :fields
-     [{:type "mrkdwn" :text (format "<https://testmb.com/dashboard/%d|*Sent from Metabase Test by Rasta Toucan*>" dashboard-id)}
-      slack-branding-text]}]
+     [{:type "mrkdwn" :text (format "<https://testmb.com/dashboard/%d|*Sent from Metabase Test by Rasta Toucan*>" dashboard-id)}]}]
    (apply concat
           (for [card-id card-ids]
             (let [id (t2/select-one-pk :model/DashboardCard :dashboard_id dashboard-id :card_id card-id)]
@@ -412,8 +407,7 @@
            (is (= {:channel "#general"
                    :blocks  [{:type "header" :text {:type "plain_text" :text "Aviary KPIs" :emoji true}}
                              {:type "section"
-                              :fields [{:type "mrkdwn" :text (format "<https://testmb.com/dashboard/%d|*Sent from Metabase Test by Rasta Toucan*>" dashboard-id)}
-                                       slack-branding-text]}
+                              :fields [{:type "mrkdwn" :text (format "<https://testmb.com/dashboard/%d|*Sent from Metabase Test by Rasta Toucan*>" dashboard-id)}]}
                              {:type "section"
                               :text {:type "mrkdwn"
                                      :text (format "<https://testmb.com/dashboard/%d#scrollTo=%d|Test card>"
@@ -457,8 +451,7 @@
            (is (= {:channel "#general"
                    :blocks [{:type "header" :text {:type "plain_text" :text "Aviary KPIs" :emoji true}}
                             {:type "section"
-                             :fields [{:type "mrkdwn" :text (format "<https://testmb.com/dashboard/%d|*Sent from Metabase Test by Rasta Toucan*>" dashboard-id)}
-                                      slack-branding-text]}
+                             :fields [{:type "mrkdwn" :text (format "<https://testmb.com/dashboard/%d|*Sent from Metabase Test by Rasta Toucan*>" dashboard-id)}]}
                             {:type "section"
                              :text {:type "mrkdwn"
                                     :text (format "<https://testmb.com/dashboard/%d#scrollTo=%d|Test card>"
@@ -505,8 +498,7 @@
                                 [{:type "mrkdwn"
                                   :text
                                   (format "<https://testmb.com/dashboard/%d?state=CA&state=NY&state=NJ&quarter_and_year=Q1-2021|*Sent from Metabase Test by Rasta Toucan*>"
-                                          dashboard-id)}
-                                 slack-branding-text]}
+                                          dashboard-id)}]}
                                {:type "section"
                                 :text {:type "mrkdwn"
                                        :text (format "<https://testmb.com/dashboard/%d?state=CA&state=NY&state=NJ&quarter_and_year=Q1-2021#scrollTo=%d|Test card>"
@@ -640,8 +632,7 @@
                               :fields [{:type "mrkdwn",
                                         :text (str "<https://testmb.com/dashboard/"
                                                    dashboard-id
-                                                   "?state=CA&state=NY&state=NJ&quarter_and_year=Q1-2021|*Sent from Metabase Test by Rasta Toucan*>")}
-                                       slack-branding-text]}
+                                                   "?state=CA&state=NY&state=NJ&quarter_and_year=Q1-2021|*Sent from Metabase Test by Rasta Toucan*>")}]}
                              {:type "section"
                               :text {:type "mrkdwn"
                                      :text (format "<https://testmb.com/dashboard/%d?state=CA&state=NY&state=NJ&quarter_and_year=Q1-2021#scrollTo=%d|Test card>"
@@ -713,8 +704,7 @@
                               :fields [{:type "mrkdwn",
                                         :text (str "<https://testmb.com/dashboard/"
                                                    dashboard-id
-                                                   "?state=CA&state=NY&state=NJ&quarter_and_year=Q1-2021|*Sent from Metabase Test by Rasta Toucan*>")}
-                                       slack-branding-text]}
+                                                   "?state=CA&state=NY&state=NJ&quarter_and_year=Q1-2021|*Sent from Metabase Test by Rasta Toucan*>")}]}
                              {:type "section",
                               :text {:type "mrkdwn",
                                      :text (format "<https://testmb.com/dashboard/%d?state=CA&state=NY&state=NJ&quarter_and_year=Q1-2021#scrollTo=%d|Test card>"
@@ -777,8 +767,7 @@
                             [{:type "mrkdwn", :text "*State*\nCA, NY, and NJ"}
                              {:type "mrkdwn", :text "*Quarter and Year*\nQ1, 2021"}]}
                            {:type "section", :fields [{:type "mrkdwn"
-                                                       :text #"<https://testmb\.com/dashboard/\d+\?state=CA&state=NY&state=NJ&quarter_and_year=Q1-2021\|\*Sent from Metabase Test by Rasta Toucan\*>"}
-                                                      slack-branding-text]}
+                                                       :text #"<https://testmb\.com/dashboard/\d+\?state=CA&state=NY&state=NJ&quarter_and_year=Q1-2021\|\*Sent from Metabase Test by Rasta Toucan\*>"}]}
                            {:type "section"
                             :text {:type "mrkdwn"
 
@@ -828,8 +817,7 @@
       :assert
       {:slack
        (fn [_object-ids [message]]
-         (is (= {:type "section", :fields [{:type "mrkdwn", :text "(URL exce…"}
-                                           slack-branding-text]}
+         (is (= {:type "section", :fields [{:type "mrkdwn", :text "(URL exce…"}]}
                 (second (:blocks message)))))}})))
 
 (deftest archived-dashboard-test
@@ -1184,8 +1172,7 @@
                              [{:type "mrkdwn"
                                :text
                                (format "<https://testmb.com/dashboard/%d?state=CA&state=NY&state=NJ&quarter_and_year=Q1-2021|*Sent from Metabase Test by Rasta Toucan*>"
-                                       dashboard-id)}
-                              slack-branding-text]}
+                                       dashboard-id)}]}
                             {:type "section" :text {:type "mrkdwn" :text "*The first tab*"}}
                             {:type "section"
                              :text {:type "mrkdwn"
@@ -1411,22 +1398,14 @@
           "the pivoted CSV header shape must differ from the flat CSV header shape"))))
 
 (deftest dashboard-subscription-email-branding-respects-whitelabel-test
-  (testing "the 'Made with Metabase' footer in dashboard subscription emails respects the :whitelabel premium feature"
+  (testing "this fork provides the :whitelabel feature without a token, so emails have no 'Made with Metabase' footer"
     (let [mp            (mt/metadata-provider)
           query         (lib/query mp (lib.metadata/table mp (mt/id :venues)))
           has-branding? (fn [email] (str/includes? (-> email :message first :content) "Made with"))]
       (mt/with-premium-features #{}
         (do-test!
          {:card   {:dataset_query query}
-          :assert {:email (fn [_ [email]] (is (true? (has-branding? email))))}}))
-      ;; Whitelabeling is only wired up in EE builds (`enable-whitelabeling?` is gated on
-      ;; `config/ee-available?`), so `:whitelabel` can never hide the footer on OSS builds.
-      ;; The EE app-db jobs run this same file with EE on the classpath and cover the hidden case.
-      (mt/when-ee-evailable
-       (mt/with-premium-features #{:whitelabel}
-         (do-test!
-          {:card   {:dataset_query query}
-           :assert {:email (fn [_ [email]] (is (false? (has-branding? email))))}}))))))
+          :assert {:email (fn [_ [email]] (is (false? (has-branding? email))))}})))))
 
 (deftest multi-series-test
   (mt/with-temp

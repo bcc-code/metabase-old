@@ -316,9 +316,10 @@
   :doc        false)
 
 (defsetting surveys-enabled
-  "Enable or disable surveys"
+  "Enable or disable Metabase's product feedback surveys. Off by default in this fork: they email users a survey on
+  metabase.com."
   :type       :boolean
-  :default    true
+  :default    false
   :export?    false
   :visibility :internal
   :audit      :getter)

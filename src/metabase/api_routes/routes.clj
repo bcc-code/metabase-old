@@ -24,7 +24,9 @@
    [metabase.collections-rest.api]
    [metabase.comments.api]
    [metabase.config.core :as config]
+   [metabase.custom-viz.api]
    [metabase.dashboards-rest.api]
+   [metabase.data-access.api]
    [metabase.data-studio.api]
    [metabase.documents.api]
    [metabase.eid-translation.api]
@@ -57,6 +59,7 @@
    [metabase.pulse.api]
    [metabase.queries-rest.api]
    [metabase.query-processor.api]
+   [metabase.remote-sync.api]
    [metabase.request.core :as request]
    [metabase.revisions.api]
    [metabase.search.api]
@@ -98,6 +101,7 @@
          metabase.cloud-migration.api/keep-me
          metabase.comments.api/keep-me
          metabase.collections-rest.api/keep-me
+         metabase.custom-viz.api/keep-me
          metabase.dashboards-rest.api/keep-me
          metabase.data-studio.api/keep-me
          metabase.documents.api/keep-me
@@ -121,6 +125,7 @@
          metabase.permissions-rest.api/keep-me
          metabase.public-sharing-rest.api/keep-me
          metabase.query-processor.api/keep-me
+         metabase.remote-sync.api/keep-me
          metabase.revisions.api/keep-me
          metabase.segments.rest.api/keep-me
          metabase.settings-rest.api/keep-me
@@ -220,6 +225,7 @@
    "/cloud-migration"      (+auth 'metabase.cloud-migration.api)
    "/collection"           (+auth 'metabase.collections-rest.api)
    "/comment"              (+auth metabase.comments.api/routes)
+   "/custom-viz-plugin"    (+auth 'metabase.custom-viz.api)
    "/dashboard"            (+auth 'metabase.dashboards-rest.api)
    "/data-studio"          (+auth metabase.data-studio.api/routes)
    "/database"             (+auth 'metabase.warehouses-rest.api)
@@ -265,6 +271,7 @@
    "/metaplow-proxy"       (+public-exceptions metabase.analytics.api.metaplow-proxy/routes)
    "/metric"               (+auth 'metabase.metrics.api)
    "/model-index"          (+auth 'metabase.indexed-entities.api)
+   "/mt"                   (+auth metabase.data-access.api/routes)
    "/native-query-snippet" (+auth 'metabase.native-query-snippets.api)
    "/notification"         metabase.notification.api/notification-routes
    "/notify"               (+static-apikey metabase.sync.api/notify-routes)
@@ -276,6 +283,7 @@
    "/preview_embed"        (+auth metabase.embedding-rest.api/preview-embedding-routes)
    "/public"               (+public-exceptions (+without-current-user metabase.public-sharing-rest.api/routes))
    "/pulse"                metabase.pulse.api/pulse-routes
+   "/remote-sync"          (+auth 'metabase.remote-sync.api)
    "/revision"             (+auth 'metabase.revisions.api)
    "/search"               (+auth metabase.search.api/routes)
    "/segment"              (+auth 'metabase.segments.rest.api)
@@ -283,6 +291,7 @@
    "/setting"              (+auth 'metabase.settings-rest.api)
    "/setup"                'metabase.setup-rest.api
    "/slack"                (+auth metabase.channel.rest.api/slack-routes)
+   "/sso"                  (+auth metabase.sso.api/sso-routes)
    "/table"                (+auth metabase.warehouse-schema-rest.api/table-routes)
    "/task"                 (+auth 'metabase.task-history.api)
    "/testing"              (if metabase.testing-api.core/enable-testing-routes? 'metabase.testing-api.api pass-thru-handler)

@@ -326,14 +326,14 @@
 (defenterprise hash-input-for-sandbox
   "Return a hash-key that will be used for sandboxed fieldvalues."
   metabase-enterprise.sandbox.models.params.field-values
-  [_field]
-  nil)
+  [field]
+  ((requiring-resolve 'metabase.data-access.core/hash-input-for-sandbox) field))
 
 (defenterprise hash-input-for-impersonation
   "Return a hash-key that will be used for impersonated fieldvalues."
   metabase-enterprise.impersonation.driver
-  [_field]
-  nil)
+  [field]
+  ((requiring-resolve 'metabase.data-access.core/hash-input-for-impersonation) field))
 
 (defenterprise hash-input-for-database-routing
   "Returns a hash input that will be used for fields subject to database routing"

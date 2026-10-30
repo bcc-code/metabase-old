@@ -5,11 +5,11 @@
    [malli.core :as mc]
    [metabase.analytics-interface.core :as analytics]
    [metabase.analytics.core :as analytics.core]
+   [metabase.api.common :as api]
    [metabase.api.macros :as api.macros]
    [metabase.channel.settings :as channel.settings]
    [metabase.lib.schema.common :as lib.schema.common]
    [metabase.metabot.feedback :as metabot.feedback]
-   [metabase.permissions.core :as perms]
    [metabase.request.core :as request]
    [metabase.server.settings :as server.settings]
    [metabase.settings.core :as setting]
@@ -432,13 +432,14 @@
   "Update Metabot Slack settings atomically.
    All credential fields must be provided together.
    Setting values requires the metabot-v3 feature, but clearing values is always allowed.
-   slack-connect-enabled is automatically set to true when credentials are provided, nil when cleared."
+   slack-connect-enabled is automatically set to true when credentials are provided, nil when cleared.
+   Superuser only: Slack Connect signs people in."
   [_route-params
    _query-params
    {:keys [slack-connect-client-id
            slack-connect-client-secret
            metabot-slack-signing-secret]} :- SlackBotSettingsRequest]
-  (perms/check-has-application-permission :setting)
+  (api/check-superuser)
   (let [all-set?   (and slack-connect-client-id
                         slack-connect-client-secret
                         metabot-slack-signing-secret)

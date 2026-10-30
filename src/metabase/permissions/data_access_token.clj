@@ -45,16 +45,16 @@
   on that table. Captures the GTAP card, its version, and the resolved user-attribute values, so
   two users \"share a sandbox\" only when they'd see the same rows."
   metabase-enterprise.sandbox.models.params.field-values
-  [_table-id]
-  nil)
+  [table-id]
+  ((requiring-resolve 'metabase.data-access.core/sandbox-token-for-table) table-id))
 
 (defenterprise impersonation-token-for-db
   "Connection-impersonation fingerprint for the current user on `db-id`, or nil when not
   impersonated (including admins). The token is a map {:role <role-string>} representing the
   resolved database role, or nil when not impersonated."
   metabase-enterprise.impersonation.driver
-  [_db-id]
-  nil)
+  [db-id]
+  ((requiring-resolve 'metabase.data-access.core/impersonation-token-for-db) db-id))
 
 (defenterprise routing-token-for-db
   "Database-routing fingerprint for the current user on router `db-id`, or nil when the user

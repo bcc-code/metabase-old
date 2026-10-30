@@ -303,6 +303,7 @@
    [:jwt-data {:optional true} [:maybe ms/JWTClaims]]
    [:jwt/require-exp-and-iat? {:optional true} [:maybe :boolean]]
    [:message {:optional true} [:maybe [:or :string ms/LocalizedString]]]
+   [:oidc-code-verifier {:optional true} [:maybe :string]]
    [:oidc-nonce {:optional true} [:maybe :string]]
    [:oidc-provider {:optional true} [:maybe :keyword]]
    [:oidc-provider-key {:optional true} [:maybe :string]]
@@ -471,10 +472,12 @@
 
 (defenterprise sso-user-fields
   "Return the list of User model fields that should be populated from SSO user data.
-   OSS version includes basic fields. Enterprise version includes login_attributes and jwt_attributes."
+   OSS version includes basic fields plus `jwt_attributes`, the column for attributes an identity provider supplies
+   (the JWT and OpenID Connect providers write the claims an admin chose there; admin-set `login_attributes` take
+   precedence over them). Enterprise version also includes login_attributes."
   metabase-enterprise.auth-identity.provider
   []
-  [:email :first_name :last_name :sso_source])
+  [:email :first_name :last_name :sso_source :jwt_attributes])
 
 (mu/defn update-user!
   "Updates a user from user-data in the request"

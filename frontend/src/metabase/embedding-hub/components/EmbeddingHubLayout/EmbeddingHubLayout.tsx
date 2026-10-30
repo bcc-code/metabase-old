@@ -21,10 +21,10 @@ type EmbeddingHubTab = {
   label: string;
   icon: IconName;
   to: string;
-  isGated?: boolean;
+  /** False when the instance lacks the feature behind the tab. */
+  isAvailable?: boolean;
   /** The design caps most hub pages at 800px; only a few need the whole
-   * area. See `EmbeddingHubContent`. A gated tab is also full width: its
-   * upsell page owns the whole tab, header included, same as Permissions. */
+   * area. See `EmbeddingHubContent`. */
   fullWidth?: boolean;
 };
 
@@ -47,8 +47,8 @@ export function EmbeddingHubLayout() {
 
   useEnsureDefaultEmbeddingThemes();
 
-  // Order comes from the design.
-  const tabs: EmbeddingHubTab[] = [
+  // Order comes from the design. Tabs whose feature is missing are left out.
+  const allTabs: EmbeddingHubTab[] = [
     { label: t`Get started`, icon: "list", to: Urls.embeddingHubGetStarted() },
     {
       label: t`Security`,
@@ -59,7 +59,7 @@ export function EmbeddingHubLayout() {
       label: t`Authentication`,
       icon: "lock",
       to: Urls.embeddingHubAuthentication(),
-      isGated: !hasSsoJwt,
+      isAvailable: hasSsoJwt,
     },
     {
       label: t`Permissions`,
@@ -71,21 +71,22 @@ export function EmbeddingHubLayout() {
       label: t`Tenancy`,
       icon: "group",
       to: Urls.embeddingHubTenancy(),
-      isGated: !hasTenants,
+      isAvailable: hasTenants,
     },
     {
       label: t`Appearance`,
       icon: "palette",
       to: Urls.embeddingHubAppearance(),
-      isGated: !hasSimpleEmbedding,
+      isAvailable: hasSimpleEmbedding,
     },
     {
       label: t`Localization`,
       icon: "globe",
       to: Urls.embeddingHubLocalization(),
-      isGated: !hasContentTranslation,
+      isAvailable: hasContentTranslation,
     },
   ];
+  const tabs = allTabs.filter((tab) => tab.isAvailable !== false);
 
   const currentTab = tabs.find((tab) => isTabSelected(tab, pathname));
   // The theme editor takes over the window -- no nav, no app switcher -- so its
@@ -107,7 +108,6 @@ export function EmbeddingHubLayout() {
           icon={tab.icon}
           to={tab.to}
           isSelected={isTabSelected(tab, pathname)}
-          isGated={tab.isGated}
           showLabel={isNavbarOpened}
         />
       ))}
@@ -136,11 +136,7 @@ export function EmbeddingHubLayout() {
       upperNav={upperNav}
       lowerNav={<NewEmbedNavButton showLabel={isNavbarOpened} />}
     >
-      <EmbeddingHubContent
-        fullWidth={
-          (currentTab?.fullWidth ?? false) || (currentTab?.isGated ?? false)
-        }
-      >
+      <EmbeddingHubContent fullWidth={currentTab?.fullWidth ?? false}>
         <Outlet />
       </EmbeddingHubContent>
     </AreaLayout>

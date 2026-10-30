@@ -62,10 +62,13 @@ function setup({
 }
 
 describe("EmbeddingHubAppearancePage", () => {
-  it("upsells and shows neither section below the paywall", async () => {
+  it("renders not found, with neither section, without embedding_simple", async () => {
     setup({ hasSimpleEmbedding: false });
 
-    expect(await screen.findByText("Create custom themes")).toBeInTheDocument();
+    expect(
+      await screen.findByText("We're a little lost..."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Create custom themes")).not.toBeInTheDocument();
 
     expect(
       screen.queryByRole("heading", { name: "Themes" }),

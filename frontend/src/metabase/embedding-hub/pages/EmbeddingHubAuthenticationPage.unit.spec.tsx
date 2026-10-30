@@ -60,12 +60,15 @@ function setup({
 }
 
 describe("EmbeddingHubAuthenticationPage", () => {
-  it("upsells instead of showing the JWT form when SSO is not licensed", async () => {
+  it("renders not found instead of the JWT form when SSO is not available", async () => {
     setup({ hasSsoJwt: false });
 
     expect(
-      await screen.findByText("Secure your embeds with single sign-on"),
+      await screen.findByText("We're a little lost..."),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Secure your embeds with single sign-on"),
+    ).not.toBeInTheDocument();
 
     // The claim that matters: nothing configurable renders below the paywall.
     expect(

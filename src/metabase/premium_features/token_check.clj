@@ -21,6 +21,7 @@
    [metabase.internal-stats.core :as internal-stats]
    [metabase.premium-features.db :as premium-features.db]
    [metabase.premium-features.defenterprise :refer [defenterprise]]
+   [metabase.premium-features.fork-features :as fork-features]
    [metabase.premium-features.settings :as premium-features.settings]
    [metabase.settings.core :as setting]
    [metabase.tracing.core :as tracing]
@@ -739,28 +740,31 @@
   (boolean (seq (*token-features*))))
 
 (defn has-feature?
-  "Does this instance's premium token have `feature`?
+  "Does this instance have `feature`, either from its premium token or because this fork provides it
+  (see [[metabase.premium-features.fork-features]])?
 
     (has-feature? :sandboxes)          ; -> true
     (has-feature? :toucan-management)  ; -> false"
   [feature]
-  (contains? (*token-features*) (name feature)))
+  (or (fork-features/provides? feature)
+      (contains? (*token-features*) (name feature))))
 
 (defn canonically-has-feature?
   "Returns `true` if the token definitively has `feature`, `false` if it definitively does not, or `nil` if the token
   status is indeterminate (e.g., network failure, timeout). Returns `false` (not `nil`) when no token is configured."
   [feature]
-  (if-let [token (premium-features.settings/premium-embedding-token)]
+  (if-let [token (and (not (fork-features/provides? feature))
+                      (premium-features.settings/premium-embedding-token))]
     (let [result (check-token token)]
       (when (:canonical? result)
         (boolean (and (:valid result)
                       (contains? (set (:features result)) (name feature))))))
-    false))
+    (fork-features/provides? feature)))
 
 (defn ee-feature-error
   "Returns an error that can be used to throw when an enterprise feature check fails."
   [feature-name]
-  (ex-info (tru "{0} is a paid feature not currently available to your instance. Please upgrade to use it. Learn more at metabase.com/upgrade/"
+  (ex-info (tru "{0} is not available on this instance."
                 feature-name)
            {:status-code 402 :status "error-premium-feature-not-available" :response/keys #{:status}}))
 

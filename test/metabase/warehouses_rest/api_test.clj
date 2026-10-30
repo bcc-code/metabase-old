@@ -2360,6 +2360,8 @@
       (testing "returns empty list when user has no create-queries perms for any schema"
         (mt/with-full-data-perms-for-all-users!
           (data-perms/set-database-permission! (perms-group/all-users) db-id :perms/view-data :unrestricted)
+          ;; managing a schema's table metadata also reveals the schema
+          (data-perms/set-database-permission! (perms-group/all-users) db-id :perms/manage-table-metadata :no)
           (data-perms/set-table-permission! (perms-group/all-users) (u/the-id t1) :perms/create-queries :no)
           (data-perms/set-table-permission! (perms-group/all-users) (u/the-id t2) :perms/create-queries :no)
           ;; User can access the endpoint but sees no schemas since they have no query perms

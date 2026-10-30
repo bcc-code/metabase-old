@@ -166,6 +166,9 @@
     :model/QueryTable
     :model/RemoteSyncObject
     :model/RemoteSyncTask
+    ;; this fork's Git sync state, in the same tables
+    :model/GitSyncEntity
+    :model/GitSyncTask
     :model/ReplacementRun
     :model/ResultMetadataStatus
     :model/SearchIndexMetadata

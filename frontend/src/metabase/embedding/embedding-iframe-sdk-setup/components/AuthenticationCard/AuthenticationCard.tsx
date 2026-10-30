@@ -53,25 +53,26 @@ export const AuthenticationCard = () => {
 
         <Radio.Group value={authType} onChange={handleAuthTypeChange}>
           <Stack gap="lg">
-            <Stack gap="sm">
-              <Radio
-                value="sso"
-                label={
-                  // eslint-disable-next-line metabase/no-literal-metabase-strings -- Public Facing string
-                  t`Metabase account (SSO)`
-                }
-                disabled={!isSimpleEmbedFeatureAvailable}
-              />
-              {authType === "sso" &&
-                isSimpleEmbedFeatureAvailable &&
-                isSimpleEmbeddingEnabled !== undefined && (
-                  <EnableModularEmbeddingSection
-                    key={currentStep}
-                    isEnabled={isSimpleEmbeddingEnabled}
-                    termsAccepted={isSimpleEmbeddingTermsAccepted}
-                  />
-                )}
-            </Stack>
+            {/* SSO embeds need modular embedding, so without it only Guest is offered. */}
+            {isSimpleEmbedFeatureAvailable && (
+              <Stack gap="sm">
+                <Radio
+                  value="sso"
+                  label={
+                    // eslint-disable-next-line metabase/no-literal-metabase-strings -- Public Facing string
+                    t`Metabase account (SSO)`
+                  }
+                />
+                {authType === "sso" &&
+                  isSimpleEmbeddingEnabled !== undefined && (
+                    <EnableModularEmbeddingSection
+                      key={currentStep}
+                      isEnabled={isSimpleEmbeddingEnabled}
+                      termsAccepted={isSimpleEmbeddingTermsAccepted}
+                    />
+                  )}
+              </Stack>
+            )}
 
             <Stack gap="sm">
               <Radio value="guest-embed" label={t`Guest`} />

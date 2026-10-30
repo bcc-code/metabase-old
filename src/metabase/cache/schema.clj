@@ -16,8 +16,10 @@
    [:schedule         {:optional true} :string]])
 
 (mr/def ::cache-config.state
-  "The `:state` column of a CacheConfig, decoded."
-  [:map {:closed true}])
+  "The `:state` column of a CacheConfig, decoded: when its results were last refreshed automatically (see
+  [[metabase.cache.refresh.core]]), as an ISO-8601 timestamp."
+  [:map {:closed true}
+   [:last_refreshed_at {:optional true} [:maybe :string]]])
 
 (mr/def ::cache-config
   "A CacheConfig as selected from the app DB: every column of `:cache_config`."

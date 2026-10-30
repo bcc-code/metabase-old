@@ -8,7 +8,7 @@
    [metabase.models.interface :as mi]
    [metabase.models.serialization :as serdes]
    [metabase.permissions.core :as perms]
-   [metabase.premium-features.core :refer [defenterprise]]
+   [metabase.premium-features.core :as premium-features :refer [defenterprise]]
    [metabase.queries.card-schema :as card-schema]
    [metabase.remote-sync.core :as remote-sync]
    [metabase.search.spec :as search.spec]
@@ -379,14 +379,24 @@
   ([_ pk]
    (mi/can-query? (warehouse-schema.db/table pk))))
 
+(defn- current-user-can-manage-table-metadata?
+  "Whether the current user may manage the metadata of `table`: admins, and with the advanced-permissions feature
+  anyone one of whose groups has the manage table metadata permission for it."
+  [{db-id :db_id :as table}]
+  (or (mi/superuser?)
+      (and (premium-features/enable-advanced-permissions?)
+           api/*current-user-id*
+           (perms/user-has-permission-for-table? api/*current-user-id* :perms/manage-table-metadata :yes
+                                                 db-id (u/the-id table)))))
+
 (defenterprise current-user-can-write-table?
-  "OSS implementation. Returns a boolean whether the current user can write the given table.
-   Checks both that the user is a superuser and that the table is editable (not in a remote-synced
-   collection in read-only mode)."
+  "Returns a boolean whether the current user can write the given table: they must be able to manage its metadata
+  (see [[current-user-can-manage-table-metadata?]]) and the table must be editable (not in a remote-synced collection
+  in read-only mode)."
   metabase-enterprise.advanced-permissions.common
   [instance]
   (and (remote-sync/table-editable? instance)
-       (mi/superuser?)))
+       (current-user-can-manage-table-metadata? instance)))
 
 (defmethod mi/can-write? :model/Table
   ;; Check if user can modify this table's metadata.

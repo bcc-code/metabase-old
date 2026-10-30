@@ -1,6 +1,5 @@
 (ns metabase.permissions.test-util
   (:require
-   [metabase.config.core :as config]
    [metabase.permissions.models.data-permissions :as data-perms]
    [metabase.permissions.models.permissions :as perms]
    [metabase.permissions.models.permissions-group :as perms-group]
@@ -8,28 +7,28 @@
    [metabase.test.data :as data]
    [metabase.test.initialize :as initialize]
    [metabase.util :as u]
+   [metabase.util.json :as json]
    [toucan2.core :as t2]))
 
 (defn do-with-restored-perms!
   "Implementation of `with-restored-perms`."
   [thunk]
-  ;; Select sandboxes _before_ permissions.
   (let [original-perms     (t2/select :model/Permissions)
-        original-sandboxes (if config/ee-available?
-                             (t2/select :model/Sandbox)
-                             [])]
+        original-sandboxes (t2/select :model/Sandbox)]
     (try
       (thunk)
       (finally
         (binding [perms/*allow-root-entries* true
                   perms/*allow-admin-permissions-changes* true]
-          (when config/ee-available?
-            (t2/delete! :model/Sandbox))
+          (t2/delete! :model/Sandbox)
           (t2/delete! :model/Permissions)
-          ;; Insert perms _before_ sandboxes because of a foreign key constraint on sandboxes.permission_id
           (t2/insert! :model/Permissions original-perms)
-          (when config/ee-available?
-            (t2/insert! :model/Sandbox original-sandboxes)))))))
+          ;; raw insert: the sandboxes were valid when they were saved, and validating them again would run their
+          ;; questions
+          (when (seq original-sandboxes)
+            (t2/insert! (t2/table-name :model/Sandbox)
+                        (for [sandbox original-sandboxes]
+                          (update sandbox :attribute_remappings #(some-> % json/encode))))))))))
 
 (defmacro with-restored-perms!
   "Runs `body`, and restores permissions and sandboxes to their original state afterwards."

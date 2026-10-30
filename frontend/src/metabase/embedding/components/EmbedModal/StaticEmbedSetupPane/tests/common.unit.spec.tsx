@@ -469,47 +469,31 @@ describe("Static Embed Setup phase", () => {
         });
 
         expect(
-          screen.getByText(
+          screen.getByText("Customizing look and feel"),
+        ).toBeInTheDocument();
+        expect(screen.queryByText("Font")).not.toBeInTheDocument();
+        expect(
+          screen.queryByText(
             getBrokenUpTextMatcher("You can change the font with a paid plan."),
           ),
-        ).toBeVisible();
-
-        const link = within(
-          screen.getByLabelText("Customizing look and feel"),
-        ).getByRole("link", {
-          name: "a paid plan",
-        });
-        expect(link).toBeVisible();
-        expect(link).toHaveAttribute(
-          "href",
-          "https://www.metabase.com/upgrade?utm_source=product&utm_medium=upsell&utm_campaign=embedding-static-font&utm_content=static-embed-settings-look-and-feel&source_plan=oss",
-        );
+        ).not.toBeInTheDocument();
       });
 
-      it('should render "Powered by Metabase" banner caption', async () => {
+      it("should not advertise removing the banner", async () => {
         await setup({
           props: {},
           activeTab: "Look and Feel",
         });
 
-        expect(screen.getByText("Removing the banner")).toBeVisible();
-
         expect(
-          screen.getByText(
-            "The “Powered by Metabase” banner appears on all guest embeds created with your current version. Upgrade to remove it (and customize a lot more)",
-          ),
-        ).toBeVisible();
-
-        const link = within(
-          screen.getByLabelText("Removing the banner"),
-        ).getByRole("link", {
-          name: "Upgrade plan",
-        });
-        expect(link).toBeVisible();
-        expect(link).toHaveAttribute(
-          "href",
-          "https://www.metabase.com/upgrade?utm_source=product&utm_medium=upsell&utm_campaign=remove-mb-branding&utm_content=static-embed-settings-look-and-feel&source_plan=oss",
-        );
+          screen.getByText("Customizing look and feel"),
+        ).toBeInTheDocument();
+        expect(
+          screen.queryByText("Removing the banner"),
+        ).not.toBeInTheDocument();
+        expect(
+          screen.queryByRole("link", { name: "Upgrade plan" }),
+        ).not.toBeInTheDocument();
       });
     });
   });

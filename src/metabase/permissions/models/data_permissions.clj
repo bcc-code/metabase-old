@@ -12,9 +12,10 @@
    [metabase.permissions.db :as permissions.db]
    [metabase.permissions.published-tables :as published-tables]
    [metabase.permissions.schema :as permissions.schema]
-   [metabase.premium-features.core :refer [defenterprise]]
+   [metabase.premium-features.core :as premium-features :refer [defenterprise]]
    [metabase.util :as u]
    [metabase.util.i18n :refer [tru]]
+   [metabase.util.log :as log]
    [metabase.util.malli :as mu]
    [metabase.util.malli.registry :as mr]
    [metabase.util.malli.schema :as ms]
@@ -850,10 +851,10 @@
 
 (defenterprise enforced-sandboxes-for-user
   "Given a user-id, returns the set of sandboxes that should be enforced for the provided user ID. This result is
-  cached for the duration of a request. Empty on OSS instances."
+  cached for the duration of a request. Empty for admins and users without sandboxes."
   metabase-enterprise.sandbox.api.util
-  [_user-id]
-  #{})
+  [user-id]
+  ((requiring-resolve 'metabase.data-access.core/enforced-sandboxes-for-user) user-id))
 
 #_{:clj-kondo/ignore [:metabase/discourage-dynamic-vars]}
 (def ^:dynamic *sandboxes-for-user*
@@ -1324,11 +1325,19 @@
   (set-table-permissions! group-or-id perm-type {table-or-id value}))
 
 (defenterprise new-table-view-data-permission-levels
-  "Returns a map of {group-id → permission-level} for multiple groups and a single DB.
-   On OSS, all are `:unrestricted`."
+  "Returns a map of {group-id → permission-level} for a new table in the DB with `db-id`: `:blocked` for groups that
+  are blocked from the whole DB or from any of its tables (their access to it is partial, so an unclassified new table
+  fails safe), else `:unrestricted`."
   metabase-enterprise.advanced-permissions.common
-  [_db-id group-ids]
-  (zipmap group-ids (repeat :unrestricted)))
+  [db-id group-ids]
+  (let [group-ids (vec group-ids)
+        blocked   (when (seq group-ids)
+                    (into #{}
+                          (comp (filter #(= :blocked (keyword (:perm_value %))))
+                                (map :group_id))
+                          (concat (permissions.db/database-level-permissions db-id group-ids ["perms/view-data"])
+                                  (permissions.db/distinct-table-level-permission-values db-id group-ids ["perms/view-data"]))))]
+    (into {} (map (fn [group-id] [group-id (if (contains? blocked group-id) :blocked :unrestricted)])) group-ids)))
 
 (defenterprise data-app-collection-ids
   "Ids of the collections data apps own, which hold the copies an app runs. OSS has none."
@@ -1344,13 +1353,13 @@
 
 (defenterprise new-table-sandboxed-groups
   "Returns the subset of `group-ids` whose new tables on `db-id` have a sandbox somewhere in this DB, and must therefore
-  have their `view-data` forced to `:blocked` regardless of the new table's schema.
-
-  On OSS there are no sandboxes, so the set is always empty. The EE implementation is `:feature :none`: a sandbox that
-  is already configured keeps forcing new tables to `:blocked` even when the token no longer grants `:sandboxes`."
+  have their `view-data` forced to `:blocked` regardless of the new table's schema. Not tied to any feature flag: a
+  sandbox that is configured keeps forcing new tables to `:blocked`."
   metabase-enterprise.advanced-permissions.common
-  [_db-id _group-ids]
-  #{})
+  [db-id group-ids]
+  (if (seq group-ids)
+    ((requiring-resolve 'metabase.data-access.core/sandboxed-group-ids-in-database) db-id group-ids)
+    #{}))
 
 ;;; ---------------------------------------- Bulk permission functions ------------------------------------------------
 ;; These functions set permissions for newly-created entities (groups, databases, tables) using batch SQL operations
@@ -1627,11 +1636,28 @@
                 (permissions.db/table-location table))]
     (set-default-table-permissions-bulk! (:db_id table) [[table group-perm-defaults]])))
 
+(def limited-download-row-limit
+  "The most rows the results downloaded by a user with `:ten-thousand-rows` download permissions may hold."
+  10000)
+
 (defenterprise download-perms-level
-  "Return the download permission for the query that the given user has. OSS returns :full"
+  "The download permission the User with `user-id` has for the results of `query`: `:one-million-rows`,
+  `:ten-thousand-rows` or `:no` (see [[metabase.query-permissions.core/download-perms-level]]), and `:full` while the
+  `advanced-permissions` feature is disabled. Admins get `:one-million-rows`; a query whose permissions can't be
+  worked out gets `:no`."
   metabase-enterprise.advanced-permissions.models.permissions.data-permissions
-  [_query _user-id]
-  :full)
+  [query user-id]
+  (cond
+    (not (premium-features/enable-advanced-permissions?)) :full
+    (nil? user-id)                                         (if api/*is-superuser?* :one-million-rows :no)
+    (is-superuser? user-id)                                :one-million-rows
+    :else
+    (try
+      ;; resolved late: query-permissions, which works out the tables a query reads, loads on top of this module
+      ((requiring-resolve 'metabase.query-permissions.core/download-perms-level) query user-id)
+      (catch Throwable e
+        (log/warnf e "Error calculating download permissions for user %s; denying downloads" user-id)
+        :no))))
 
 (defn has-db-transforms-permission?
   "Returns true if the given user has the transforms permission for the given source db.

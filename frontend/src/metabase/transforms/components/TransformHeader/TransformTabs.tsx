@@ -51,11 +51,13 @@ function getTabs(id: TransformId): PillTab[] {
     });
   }
 
-  if (PLUGIN_TRANSFORMS_PYTHON.shouldShowInspectTab) {
+  if (
+    PLUGIN_TRANSFORMS_PYTHON.shouldShowInspectTab &&
+    PLUGIN_TRANSFORMS_PYTHON.isEnabled
+  ) {
     tabs.push({
       label: t`Inspect`,
       to: inspectUrl,
-      isGated: !PLUGIN_TRANSFORMS_PYTHON.isEnabled,
       isSelected: (pathname: string) => pathname.startsWith(inspectUrl),
     });
   }

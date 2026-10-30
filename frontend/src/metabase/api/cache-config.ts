@@ -43,6 +43,8 @@ export const cacheConfigApi = Api.injectEndpoints({
       void,
       {
         include?: "overrides";
+        /** The root (instance-wide) policy, whose id is always 0. With `include: "overrides"`, every cached result. */
+        root?: number;
         database?: number | number[];
         dashboard?: number | number[];
         question?: number | number[];

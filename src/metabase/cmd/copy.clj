@@ -152,6 +152,10 @@
     :model/ExplorationBookmark
     ;; 63+
     :model/McpFeedback
+    :model/CustomVisualization
+    ;; row and column security and connection impersonation (the `data-access` module)
+    :model/Sandbox
+    :model/ConnectionImpersonation
     ;; Not in dependency order, and cannot be: `transform.target_table_id` and `metabase_table.transform_id`
     ;; point at each other. Order does not matter -- `copy!` defers or disables FK checks for the whole load.
     :model/Transform
@@ -167,9 +171,7 @@
    (when config/ee-available?
      [:model/MetabotGroupLimit
       :model/MetabotInstanceLimit
-      :model/Sandbox
       :model/Tenant
-      :model/ConnectionImpersonation
       :model/CustomVizPlugin
       :model/ContentDiagnosticsFinding
       :model/TransformTest

@@ -22,9 +22,6 @@ import {
 
 export const UTM_LOCATION = "embedded_analytics_js_wizard";
 
-export const UPSELL_CAMPAIGN_EXPERIENCE = "embedding_experience";
-export const UPSELL_CAMPAIGN_BEHAVIOR = "embedding_behavior";
-
 export const SETUP_SSO_CAMPAIGN = "embedding_get_code";
 
 /**

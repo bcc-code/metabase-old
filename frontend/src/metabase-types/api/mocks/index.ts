@@ -16,6 +16,7 @@ export * from "./document";
 export * from "./erd";
 export * from "./field";
 export * from "./geojson";
+export * from "./git-sync";
 export * from "./group";
 export * from "./index-manager";
 export * from "./insight";

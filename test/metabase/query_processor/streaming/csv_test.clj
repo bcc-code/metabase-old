@@ -62,6 +62,11 @@
         (data-perms/set-database-permission! (perms-group/all-users)
                                              (mt/id)
                                              :perms/create-queries :query-builder)
+        ;; this fork always enforces download permissions (advanced permissions), so grant downloads explicitly: the
+        ;; query should fail on its data permissions, not on the download check
+        (data-perms/set-database-permission! (perms-group/all-users)
+                                             (mt/id)
+                                             :perms/download-results :one-million-rows)
         (let [results        (mt/user-http-request :rasta :post 200 (format "card/%d/query/csv" card-id))
               results-string (str results)
               illegal-strings ["notvisiblekey" "notvisiblevalue" "column_settings"

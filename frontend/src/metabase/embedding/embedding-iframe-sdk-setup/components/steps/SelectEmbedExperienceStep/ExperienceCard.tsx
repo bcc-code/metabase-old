@@ -25,9 +25,12 @@ export const ExperienceCard = () => {
 
   const handleEmbedExperienceChange = useHandleExperienceChange();
 
+  // Experiences that need modular embedding are left out when it is missing.
   const experiences = getEmbedExperiences({
     isMetabotAvailable,
-  });
+  }).filter(
+    (experience) => experience.supportsOss || isSimpleEmbedFeatureAvailable,
+  );
 
   const showSsoNotConfiguredWarning =
     !isSsoEnabledAndConfigured && !hasAuthToSelect(experience);
@@ -59,10 +62,7 @@ export const ExperienceCard = () => {
                   </Flex>
                 }
                 description={experience.description}
-                disabled={
-                  (!experience.supportsOss && !isSimpleEmbedFeatureAvailable) ||
-                  (!experience.supportsGuestEmbed && isGuestEmbed)
-                }
+                disabled={!experience.supportsGuestEmbed && isGuestEmbed}
               />
             ))}
           </Stack>

@@ -12,6 +12,7 @@ import { Box, Divider } from "metabase/ui";
 
 import { getAuthProviders } from "../../selectors";
 import { AuthLayout } from "../AuthLayout";
+import { SsoLoginError } from "../SsoLoginError";
 
 type LoginQueryParams = {
   provider: string;
@@ -23,6 +24,7 @@ export const Login = (): JSX.Element => {
   const providers = useSelector(getAuthProviders);
   const selection = getSelectedProvider(providers, params.provider);
   const redirectUrl = searchParams.get("redirect") ?? undefined;
+  const ssoError = searchParams.get("sso_error");
   const applicationName = useSelector(getApplicationName);
 
   usePageTitle(t`Login`);
@@ -52,6 +54,14 @@ export const Login = (): JSX.Element => {
       >
         {t`Sign in to ${applicationName}`}
       </Box>
+      {ssoError && (
+        <Box mt="1.5rem">
+          <SsoLoginError
+            code={ssoError}
+            providerErrorCode={searchParams.get("sso_error_code")}
+          />
+        </Box>
+      )}
       {selection && selection.Panel && (
         <Box mt="2.5rem">
           <selection.Panel redirectUrl={redirectUrl} />

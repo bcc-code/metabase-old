@@ -36,16 +36,18 @@
         (t2/update! :model/User {:email "rasta@metabase.com"} {:first_name "Rasta" :last_name "Toucan" :sso_source nil})))))
 
 (defn do-with-other-sso-types-disabled!
-  "Execute `thunk` with LDAP and Slack Connect SSO types disabled.
+  "Execute `thunk` with the LDAP, Slack Connect, JWT and OpenID Connect SSO types disabled.
    Useful when testing a specific SSO provider in isolation.
 
    Note: This OSS version only disables OSS SSO types. EE tests should use
    [[metabase-enterprise.sso.test-setup/do-with-other-sso-types-disabled!]]
-   which also disables SAML and JWT."
+   which also disables SAML."
   [thunk]
   (mt/with-temporary-setting-values
     [ldap-enabled          false
-     slack-connect-enabled false]
+     slack-connect-enabled false
+     jwt-enabled           false
+     oidc-enabled          false]
     (thunk)))
 
 (defn localhost-site-url

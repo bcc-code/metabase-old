@@ -9,6 +9,7 @@
   (:require
    [clojure.string :as str]
    [clojure.test :refer :all]
+   [java-time.api :as t]
    [metabase.lib.core :as lib]
    [metabase.lib.metadata :as lib.metadata]
    [metabase.models.interface :as mi]
@@ -276,6 +277,30 @@
                   (is (=? {:type :ttl, :avg-execution-ms (queries/average-execution-time-ms card-query-hash)}
                           (:cache-strategy
                            (qp.card/query-for-card card nil (qp.constraints/default-query-constraints) nil)))))))))))))
+
+(deftest query-for-card-cache-strategy-test
+  (testing "A Card's query carries the most specific configured cache strategy"
+    (mt/with-model-cleanup [:model/CacheConfig]
+      (mt/with-temp [:model/Card      card               {:dataset_query (mt/mbql-query venues)}
+                     :model/Dashboard {dashboard-id :id} {}]
+        (let [strategy (fn [ids]
+                         (:cache-strategy (apply qp.card/query-for-card card nil nil nil (when ids [ids]))))]
+          (t2/insert! :model/CacheConfig {:model "database" :model_id (mt/id) :strategy :duration
+                                          :config {:duration 2 :unit "hours"}})
+          (t2/insert! :model/CacheConfig {:model "dashboard" :model_id dashboard-id :strategy :nocache
+                                          :config {}})
+          (testing "run on its own: the database's"
+            (is (=? {:type :duration :duration 2 :unit "hours"}
+                    (strategy nil))))
+          (testing "run on the dashboard: the dashboard's"
+            (is (=? {:type :nocache}
+                    (strategy {:dashboard-id dashboard-id}))))
+          (testing "with its own: its own"
+            (t2/insert! :model/CacheConfig {:model "question" :model_id (:id card) :strategy :schedule
+                                            :config {:schedule "0 0 6 * * ? *"}
+                                            :invalidated_at (t/offset-date-time)})
+            (is (=? {:type :schedule :schedule "0 0 6 * * ? *" :invalidated-at some?}
+                    (strategy {:dashboard-id dashboard-id})))))))))
 
 (deftest nested-query-permissions-test
   (testing "Reading a Card is not enough to run it when its source query is a Card we cannot read"

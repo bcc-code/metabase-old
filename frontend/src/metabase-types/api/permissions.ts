@@ -18,6 +18,7 @@ export enum DataPermission {
   DETAILS = "details",
   TRANSFORMS = "transforms",
   COLLECTIONS = "collections",
+  APPLICATION = "application",
 }
 
 export enum DataPermissionType {
@@ -28,6 +29,9 @@ export enum DataPermissionType {
   DATA_MODEL = "data-model",
   TRANSFORMS = "transforms",
   COLLECTIONS = "collections",
+  APPLICATION_SETTING = "application-setting",
+  APPLICATION_MONITORING = "application-monitoring",
+  APPLICATION_SUBSCRIPTION = "application-subscription",
 }
 
 export enum DataPermissionValue {
@@ -186,6 +190,12 @@ export type GroupTableAccessPolicy = {
   permission_id: number | null;
 };
 
+/** A row and column security policy as it is sent to be validated or saved, before it has an ID. */
+export type GroupTableAccessPolicyDraft = Pick<
+  GroupTableAccessPolicy,
+  "group_id" | "table_id" | "card_id" | "attribute_remappings"
+>;
+
 export type Impersonation = {
   db_id: DatabaseId;
   group_id: GroupId;
@@ -224,3 +234,31 @@ export type PermissionsDatabase = Database;
 export type PermissionSubject = "schemas" | "tables" | "fields";
 
 export type SpecialGroupType = "admin" | "analyst" | "external" | null;
+
+export type ApplicationPermissionKey =
+  | "setting"
+  | "monitoring"
+  | "subscription";
+
+export type ApplicationPermissionValue = "yes" | "no";
+
+export type ApplicationPermissions = Record<
+  ApplicationPermissionKey,
+  ApplicationPermissionValue
+>;
+
+/** `GET /api/permissions/application/graph` */
+export type ApplicationPermissionsGraph = {
+  revision: number;
+  groups: Record<GroupId, ApplicationPermissions>;
+};
+
+/**
+ * `PUT /api/permissions/application/graph`: the changed permissions of the
+ * changed groups, based on the graph read at `revision`.
+ */
+export type UpdateApplicationPermissionsGraphRequest = {
+  revision: number;
+  force?: boolean;
+  groups: Record<GroupId, Partial<ApplicationPermissions>>;
+};

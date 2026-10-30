@@ -1,6 +1,7 @@
 export * from "./card";
 export * from "./click-behavior";
 export * from "./common";
+export * from "./custom-viz-plugin";
 export * from "./dom";
 export * from "./notification-channels";
 export * from "./parameters";

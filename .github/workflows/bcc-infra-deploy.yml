@@ -1,0 +1,49 @@
+# Plans or applies the Terraform in infra/ through the BCC Infra Platform.
+# See bcc-docs/hosting.md and https://developer.bcc.no/bcc-platform/creating_projects.html
+name: BCC - Deploy Terraform
+run-name: Deploy Terraform - ${{ inputs.environment }} - ${{ inputs.action }}
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - infra/**
+      - .github/workflows/bcc-infra-deploy.yml
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        default: sandbox
+        options:
+          - sandbox
+          - prod
+      action:
+        type: choice
+        description: Action to perform against the Terraform code.
+        default: plan
+        options:
+          - plan
+          - apply
+          - plan destroy
+          - destroy
+      deployment-targets:
+        type: string
+        description: Optional. Terraform targets (comma separated list).
+
+permissions: {}
+
+jobs:
+  terraform:
+    name: Terraform
+    # The platform team maintains this workflow on main, as its documentation shows.
+    uses: bcc-code/bcc-platform-deploy/.github/workflows/terraform.yml@main
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      component-name: main
+      # A push plans sandbox; applying, and anything in prod, is started by hand.
+      environment: ${{ inputs.environment || 'sandbox' }}
+      path: ./infra
+      action: ${{ inputs.action || 'plan' }}
+      deployment-targets: ${{ inputs.deployment-targets }}

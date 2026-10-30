@@ -1,6 +1,7 @@
 (ns metabase.sso.common-test
   (:require
    [clojure.test :refer :all]
+   [metabase.permissions.advanced-test-util :as advanced-test-util]
    [metabase.permissions.core :as perms]
    [metabase.permissions.models.permissions-group :as perms-group]
    [metabase.sso.common :as integrations.common]
@@ -236,7 +237,7 @@
 
 (deftest sync-groups-data-analyst-without-advanced-permissions-test
   (testing "a mapped add to the Data Analysts group is logged and skipped when :advanced-permissions is missing"
-    (mt/with-premium-features #{}
+    (advanced-test-util/without-advanced-permissions
       (mt/with-log-messages-for-level [messages :error]
         (mt/with-user-in-groups [group {:name (str ::group)}
                                  user  []]

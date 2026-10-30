@@ -9,7 +9,6 @@ import { Box, Button, Divider, Icon } from "metabase/ui";
 import * as Urls from "metabase/urls";
 
 import S from "./AdditionalHelpButtonGroup.module.css";
-import { ContactSupportButtonSection } from "./ContactSupportButtonSection";
 
 export const AdditionalHelpButtonGroup = () => {
   const showMetabaseLinks = useSelector(getShowMetabaseLinks);
@@ -46,7 +45,6 @@ export const AdditionalHelpButtonGroup = () => {
           </Button>
         </Box>
       )}
-      <ContactSupportButtonSection />
     </>
   );
 };

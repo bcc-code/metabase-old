@@ -7,6 +7,7 @@ import { mockSettings } from "__support__/settings";
 import { createMockState } from "__support__/state";
 import { renderWithProviders, screen, within } from "__support__/ui";
 import { Route } from "metabase/router";
+import type { TokenFeatures } from "metabase-types/api";
 import {
   createMockSettings,
   createMockTokenFeatures,
@@ -33,16 +34,25 @@ const TAB_LABELS = [
   "Localization",
 ];
 
+const ALL_TAB_FEATURES: Partial<TokenFeatures> = {
+  sso_jwt: true,
+  tenants: true,
+  embedding_simple: true,
+  content_translation: true,
+};
+
 type SetupOptions = {
   initialRoute?: string;
   isNavbarOpened?: boolean;
+  tokenFeatures?: Partial<TokenFeatures>;
 };
 
 function setup({
   initialRoute = "/embedding/get-started",
   isNavbarOpened = true,
+  tokenFeatures: tokenFeatureOverrides = ALL_TAB_FEATURES,
 }: SetupOptions = {}) {
-  const tokenFeatures = createMockTokenFeatures();
+  const tokenFeatures = createMockTokenFeatures(tokenFeatureOverrides);
 
   setupSettingsEndpoints([]);
   setupPropertiesEndpoints(
@@ -95,30 +105,38 @@ describe("EmbeddingHubLayout", () => {
     ).toHaveAttribute("href", "/embedding/get-started");
   });
 
-  it("shows a gem on the paid tabs, none on Permissions", async () => {
-    setup();
+  it("leaves out the tabs whose feature the instance lacks", async () => {
+    setup({ tokenFeatures: {} });
 
     const nav = await findNav();
+    const links = within(nav).getAllByRole("link");
 
-    for (const label of [
-      "Authentication",
-      "Tenancy",
-      "Appearance",
-      "Localization",
-    ]) {
-      expect(
-        within(
-          await within(nav).findByRole("link", { name: label }),
-        ).getByTestId("upsell-gem"),
-      ).toBeInTheDocument();
-    }
-
-    expect(
-      within(
-        await within(nav).findByRole("link", { name: "Permissions" }),
-      ).queryByTestId("upsell-gem"),
-    ).not.toBeInTheDocument();
+    expect(links.map((link) => link.getAttribute("aria-label"))).toEqual([
+      "Get started",
+      "Security",
+      "Permissions",
+    ]);
+    expect(within(nav).queryByTestId("upsell-gem")).not.toBeInTheDocument();
   });
+
+  it.each([
+    { feature: "sso_jwt", label: "Authentication" },
+    { feature: "tenants", label: "Tenancy" },
+    { feature: "embedding_simple", label: "Appearance" },
+    { feature: "content_translation", label: "Localization" },
+  ] as const)(
+    "shows the $label tab, without a gem, only with $feature",
+    async ({ feature, label }) => {
+      setup({ tokenFeatures: { [feature]: true } });
+
+      const nav = await findNav();
+
+      expect(
+        await within(nav).findByRole("link", { name: label }),
+      ).toBeInTheDocument();
+      expect(within(nav).queryByTestId("upsell-gem")).not.toBeInTheDocument();
+    },
+  );
 
   it("keeps Get started current on the setup wizard sub-pages", async () => {
     setup({ initialRoute: "/embedding/get-started/permissions" });

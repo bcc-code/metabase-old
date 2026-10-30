@@ -267,9 +267,10 @@
 
 (defenterprise set-role-if-supported!
   "Sets the connection impersonation role of the current user, or the default role, on the connection `conn` to
-  `database`; OSS has no connection impersonation, so the connection keeps its own user."
+  `database`."
   metabase-enterprise.impersonation.driver
-  [_driver _conn _database])
+  [driver conn database]
+  ((requiring-resolve 'metabase.data-access.core/set-role-if-supported!) driver conn database))
 
 (defonce ^:private pool-databases
   (atom {}))
