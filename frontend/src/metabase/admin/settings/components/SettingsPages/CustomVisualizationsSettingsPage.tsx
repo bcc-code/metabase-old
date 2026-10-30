@@ -1,40 +1,18 @@
-import { jt, t } from "ttag";
+import { t } from "ttag";
 
-import { UpsellCustomViz } from "metabase/admin/upsells";
-import { Link } from "metabase/common/components/Link";
 import { useHasTokenFeature, useMetadataToasts } from "metabase/common/hooks";
 import { PLUGIN_CUSTOM_VIZ } from "metabase/plugins";
 import { useParams } from "metabase/router";
 import { useAdminSetting } from "metabase/settings";
 import { SettingsPageWrapper } from "metabase/settings-components";
-import {
-  Alert,
-  Button,
-  Card,
-  Group,
-  Icon,
-  Paper,
-  SimpleGrid,
-  Stack,
-  Text,
-  Title,
-} from "metabase/ui";
-import * as Urls from "metabase/urls";
-import type { IconName } from "metabase-types/api";
+import { Alert, Button, Card, Icon, Stack, Text, Title } from "metabase/ui";
+import { reload } from "metabase/utils/dom";
+
 export function CustomVisualizationsManagePage() {
-  const customVizLoaded = useHasTokenFeature("custom-viz");
-  const customVizAvailable = useHasTokenFeature("custom-viz-available");
+  const isCustomVizOn = useHasTokenFeature("custom-viz");
 
-  if (!customVizAvailable) {
-    return (
-      <SettingsPageWrapper title={t`Custom visualizations`}>
-        <UpsellCustomViz location="settings-custom-viz" />
-      </SettingsPageWrapper>
-    );
-  }
-
-  if (!customVizLoaded) {
-    return <CustomVizEmptyState />;
+  if (!isCustomVizOn) {
+    return <CustomVizTurnedOffState />;
   }
 
   return <PLUGIN_CUSTOM_VIZ.ManageCustomVizPage />;
@@ -42,52 +20,32 @@ export function CustomVisualizationsManagePage() {
 
 export function CustomVisualizationsFormPage() {
   const params = useParams<{ id: string }>();
-  const customVizFeatureLoaded = useHasTokenFeature("custom-viz");
-  const hasCustomVizAvailable = useHasTokenFeature("custom-viz-available");
+  const isCustomVizOn = useHasTokenFeature("custom-viz");
 
-  if (!hasCustomVizAvailable) {
-    return (
-      <SettingsPageWrapper title={t`Custom visualizations`}>
-        <UpsellCustomViz location="settings-custom-viz" />
-      </SettingsPageWrapper>
-    );
-  }
-
-  if (!customVizFeatureLoaded) {
-    return <CustomVizEmptyState />;
+  if (!isCustomVizOn) {
+    return <CustomVizTurnedOffState />;
   }
 
   return <PLUGIN_CUSTOM_VIZ.CustomVizPage params={params} />;
 }
 
 export function CustomVisualizationsDevelopmentPage() {
-  const hasCustomVizAvailable = useHasTokenFeature("custom-viz-available");
-  const customVizFeatureLoaded = useHasTokenFeature("custom-viz");
+  const isCustomVizOn = useHasTokenFeature("custom-viz");
 
-  if (!hasCustomVizAvailable) {
-    return (
-      <SettingsPageWrapper title={t`Custom visualizations`}>
-        <UpsellCustomViz location="settings-custom-viz" />
-      </SettingsPageWrapper>
-    );
-  }
-
-  if (!customVizFeatureLoaded) {
-    return <CustomVizEmptyState />;
+  if (!isCustomVizOn) {
+    return <CustomVizTurnedOffState />;
   }
 
   return <PLUGIN_CUSTOM_VIZ.CustomVizDevPage />;
 }
 
-const CUSTOM_VIZ_ENABLED_SETTING = "custom-viz-enabled";
-const CSP_IMG_ENABLED_SETTING = "csp-img-enabled";
+const CUSTOM_VIZ_ENABLED_SETTING = "custom-visualizations-enabled";
 
-function CustomVizEmptyState() {
+function CustomVizTurnedOffState() {
   const { updateSetting } = useAdminSetting(CUSTOM_VIZ_ENABLED_SETTING);
-  const { value: cspImgEnabled } = useAdminSetting(CSP_IMG_ENABLED_SETTING);
   const { sendErrorToast } = useMetadataToasts();
 
-  const handleEnable = async () => {
+  const handleTurnOn = async () => {
     const { error } = await updateSetting({
       key: CUSTOM_VIZ_ENABLED_SETTING,
       value: true,
@@ -95,102 +53,36 @@ function CustomVizEmptyState() {
     });
 
     if (error) {
-      sendErrorToast(t`Failed to enable custom visualizations`);
+      sendErrorToast(t`Failed to turn on custom visualizations`);
     } else {
-      window.location.reload();
+      reload();
     }
   };
 
   return (
     <SettingsPageWrapper title={t`Custom visualizations`}>
       <Card bg="background_page-primary" p={48} maw={640} withBorder>
-        <Stack gap="3rem">
-          <Stack gap="lg">
-            <Stack gap="sm">
-              <Title order={3}>{t`Enable custom visualizations`}</Title>
-              <Text c="text-secondary" lh="1.25rem">
-                {t`Show your data the way you need to with custom visualizations. Use the custom viz SDK to build visualization plugins and upload them here as packaged bundles (.tgz).`}
-              </Text>
-              <Alert
-                size="compact"
-                title={t`Security risk`}
-                icon={<Icon name="warning" />}
-              >
-                {t`Be aware that custom visualizations can execute arbitrary code, and should only be added from trusted sources.`}
-              </Alert>
-
-              {!cspImgEnabled && (
-                <Text c="text-secondary" lh="1.25rem">
-                  {jt`Turn on "Restrict image domains" in ${(
-                    <Link
-                      key="link"
-                      to={Urls.domainsSettings()}
-                      variant="brand"
-                    >
-                      {t`Domains settings`}
-                    </Link>
-                  )} before enabling custom visualizations.`}
-                </Text>
-              )}
-            </Stack>
-            <Stack align="flex-start">
-              <Button
-                variant="filled"
-                onClick={handleEnable}
-                disabled={!cspImgEnabled}
-              >
-                {t`Enable custom visualizations`}
-              </Button>
-            </Stack>
+        <Stack gap="lg">
+          <Stack gap="sm">
+            <Title order={3}>{t`Custom visualizations are turned off`}</Title>
+            <Text c="text-secondary" lh="1.25rem">
+              {t`Turn them on to let everyone use the chart types your team installs as JavaScript bundles.`}
+            </Text>
+            <Alert
+              size="compact"
+              title={t`Security risk`}
+              icon={<Icon name="warning" />}
+            >
+              {t`A custom visualization runs arbitrary JavaScript in the browser of everyone who views it, so only install bundles from people you trust.`}
+            </Alert>
           </Stack>
-          <SimpleGrid cols={2} spacing="sm">
-            <FeatureCard
-              icon="lineandbar"
-              title={t`Custom chart types`}
-              description={t`Create visualization types designed for your specific data and use cases`}
-            />
-            <FeatureCard
-              icon="code_block"
-              title={t`SDK-based development`}
-              description={t`Build plugins with the Custom Visualizations SDK`}
-            />
-            <FeatureCard
-              icon="upload"
-              title={t`Bundle uploads`}
-              description={t`Publish custom visualizations by uploading packaged plugin bundles (.tgz)`}
-            />
-            <FeatureCard
-              icon="gear"
-              title={t`Full control`}
-              description={t`Enable, disable, and manage custom visualization plugins`}
-            />
-          </SimpleGrid>
+          <Stack align="flex-start">
+            <Button variant="filled" onClick={handleTurnOn}>
+              {t`Turn on custom visualizations`}
+            </Button>
+          </Stack>
         </Stack>
       </Card>
     </SettingsPageWrapper>
-  );
-}
-
-type FeatureCardProps = {
-  icon: IconName;
-  title: string;
-  description: string;
-};
-
-function FeatureCard({ icon, title, description }: FeatureCardProps) {
-  return (
-    <Paper bg="background_page-secondary" p="lg" radius="sm" shadow="none">
-      <Group gap="sm" align="flex-start" wrap="nowrap">
-        <Icon name={icon} size={16} c="core-brand" style={{ flexShrink: 0 }} />
-        <Stack gap="xxs">
-          <Text fw="bold" lh="1rem">
-            {title}
-          </Text>
-          <Text c="text-secondary" lh="1rem">
-            {description}
-          </Text>
-        </Stack>
-      </Group>
-    </Paper>
   );
 }
