@@ -6,7 +6,10 @@ import type { ColorSettings } from "metabase-types/api";
 import { deriveAllAccentColors, mapChartColorsToAccents } from "./accents";
 import { getBaseColorsForThemeDefinitionOnly } from "./constants/base-colors";
 import { PROTECTED_COLORS } from "./constants/protected-colors";
-import { mapWhitelabelColorsToTokens } from "./constants/whitelabel-colors";
+import {
+  adaptWhitelabelTokensToDarkScheme,
+  mapWhitelabelColorsToTokens,
+} from "./constants/whitelabel-colors";
 import { getThemeFromColorScheme } from "./theme-from-color-scheme";
 import type {
   MetabaseColorKey,
@@ -57,11 +60,20 @@ export function deriveFullMetabaseTheme({
     shouldKeepBrandRampDynamic ? baseColors.brand : baseColors.ocean,
   );
 
+  const whitelabelTokens = mapWhitelabelColorsToTokens(whitelabelColors);
+  const schemeWhitelabelTokens =
+    colorScheme === "dark"
+      ? adaptWhitelabelTokensToDarkScheme(
+          whitelabelTokens,
+          baseTheme.colors["background_page-primary"],
+        )
+      : whitelabelTokens;
+
   // Unjustified type cast. FIXME
   const colors = {
     ...baseTheme.colors,
     ...mapChartColorsToAccents(baseTheme.chartColors),
-    ...deriveAllAccentColors(mapWhitelabelColorsToTokens(whitelabelColors)),
+    ...deriveAllAccentColors(schemeWhitelabelTokens),
     ...filteredEmbeddingColors,
     ...mapChartColorsToAccents(embeddingThemeOverride?.chartColors ?? []),
   } as Record<MetabaseColorKey, string>;

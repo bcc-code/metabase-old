@@ -1,4 +1,5 @@
 export type MetabaseFontFamily =
+  | "Archivo"
   | "Roboto"
   | "Merriweather"
   | "Open Sans"

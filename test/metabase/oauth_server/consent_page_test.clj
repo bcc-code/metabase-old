@@ -77,6 +77,28 @@
         (is (re-find #"http://localhost:3000/app/assets/img/custom\.png" html)
             "relative path should be resolved to absolute URL")))))
 
+(deftest whitelabel-brand-color-test
+  (testing "the brand color from application-colors styles the logo and the Authorize button"
+    (let [html (mt/with-temporary-setting-values [application-colors {:brand "#004D48"}]
+                 (render!))]
+      (is (re-find #"\.allow \{ background: #004D48;" html))
+      (is (not (re-find #"#509ee3" html)))))
+  (testing "an unsafe brand color falls back to the default"
+    (let [html (mt/with-temporary-setting-values [application-colors {:brand "red; } body { display: none"}]
+                 (render!))]
+      (is (re-find #"\.allow \{ background: #509ee3;" html)))))
+
+(deftest web-safe-font-test
+  (testing "a web-safe application font is used without loading font files for it"
+    (let [html (mt/with-temporary-setting-values [application-font "Arial"]
+                 (render!))]
+      (is (re-find #"font-family: 'Arial', 'Lato'" html))
+      (is (not (re-find #"app/fonts/Arial" html)))))
+  (testing "a bundled font loads its files"
+    (let [html (mt/with-temporary-setting-values [application-font "Open Sans"]
+                 (render!))]
+      (is (re-find #"app/fonts/Open_Sans/OpenSans-Regular\.woff2" html)))))
+
 (deftest consent-page-subpath-form-action-test
   (testing "form action is absolute so it survives hosting under a subpath (GIT-10551)"
     (let [html (mt/with-temporary-setting-values [site-url "https://example.com/metabase"]

@@ -1,6 +1,6 @@
 import { useClickOutside } from "@mantine/hooks";
 import { useState } from "react";
-import { t } from "ttag";
+import { c, t } from "ttag";
 
 import { Link } from "metabase/common/components/Link";
 import { LogoIcon } from "metabase/common/components/LogoIcon";
@@ -10,12 +10,11 @@ import { PLUGIN_SECURITY_CENTER } from "metabase/plugins";
 import { useSelector } from "metabase/redux";
 import type { AdminPath } from "metabase/redux/store";
 import { useNavigate } from "metabase/router";
-import { getIsPaidPlan } from "metabase/selectors/settings";
+import { getApplicationName } from "metabase/selectors/whitelabel";
 import { ActionIcon, Box, Flex, Group, Icon } from "metabase/ui";
 
 import { ADMIN_NAVBAR_HEIGHT } from "../../constants";
 import { AppSwitcher } from "../AppSwitcher";
-import StoreLink from "../StoreLink";
 
 import { AdminNavItem } from "./AdminNavItem";
 import { AdminNavLink } from "./AdminNavLink";
@@ -30,8 +29,8 @@ export const AdminNavbar = ({
   path: currentPath,
   adminPaths,
 }: AdminNavbarProps) => {
-  const isPaidPlan = useSelector(getIsPaidPlan);
   const isAdmin = useSelector(getUserIsAdmin);
+  const applicationName = useSelector(getApplicationName);
   const navigate = useNavigate();
 
   useRegisterShortcut(
@@ -81,12 +80,9 @@ export const AdminNavbar = ({
         style={{ overflow: "hidden" }}
       >
         <LogoIcon dark />
-        <Box
-          visibleFrom="lg"
-          fw={700}
-          ml="1rem"
-          // eslint-disable-next-line metabase/no-literal-metabase-strings -- Metabase settings
-        >{t`Metabase Admin`}</Box>
+        <Box visibleFrom="lg" fw={700} ml="1rem">
+          {c("{0} is the application name").t`${applicationName} Admin`}
+        </Box>
       </Flex>
 
       <Flex visibleFrom="md" align="center" miw={0} flex="1 1 auto" ps="2rem">
@@ -112,8 +108,6 @@ export const AdminNavbar = ({
             />
           )}
         </Flex>
-
-        {!isPaidPlan && isAdmin && <StoreLink />}
       </Flex>
       <Group gap="0.5rem" ms="auto">
         <MobileNavbar

@@ -70,21 +70,22 @@ const setupTabs = async (adminPaths: AdminPath[] = ADMIN_PATHS) => {
 };
 
 describe("AdminNavbar", () => {
-  describe("StoreLink visibility", () => {
-    it("does not show store link when user is not an admin", () => {
-      setup({ isAdmin: false, isPaidPlan: true });
-      expect(screen.queryByTestId("store-link")).not.toBeInTheDocument();
-    });
-
-    it("shows store link when user is admin and not on paid plan", () => {
-      setup({ isAdmin: true, isPaidPlan: false });
-      expect(screen.getByTestId("store-link")).toBeInTheDocument();
-    });
-
-    it("does not show store link when user is admin and on paid plan", () => {
-      setup({ isAdmin: true, isPaidPlan: true });
-      expect(screen.queryByTestId("store-link")).not.toBeInTheDocument();
-    });
+  describe("store link", () => {
+    it.each([
+      { isAdmin: true, isPaidPlan: false },
+      { isAdmin: true, isPaidPlan: true },
+      { isAdmin: false, isPaidPlan: false },
+    ])(
+      "never links to the Metabase store (admin: $isAdmin, paid plan: $isPaidPlan)",
+      ({ isAdmin, isPaidPlan }) => {
+        setup({ isAdmin, isPaidPlan });
+        expect(screen.getByTestId("admin-navbar")).toBeInTheDocument();
+        expect(screen.queryByTestId("store-link")).not.toBeInTheDocument();
+        expect(
+          screen.queryByLabelText("Explore paid features"),
+        ).not.toBeInTheDocument();
+      },
+    );
   });
 
   describe("Security Center tab", () => {

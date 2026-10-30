@@ -38,4 +38,5 @@
   show-metabase-links
   show-metabot
   site-name
-  site-name!])
+  site-name!
+  web-safe-fonts])

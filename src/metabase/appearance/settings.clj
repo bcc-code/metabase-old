@@ -133,6 +133,11 @@ To change the chart colors:
 }
 ```")
 
+(def web-safe-fonts
+  "Names of fonts that [[application-font]] accepts besides the fonts bundled with Metabase. Metabase serves no files
+  for them: browsers render them with the fonts installed on the viewer's system."
+  #{"Arial" "Georgia" "Tahoma" "Times New Roman" "Trebuchet MS" "Verdana"})
+
 (defsetting application-font
   (deferred-tru "Replace “Lato” as the font family.")
   :encryption :no
@@ -144,7 +149,8 @@ To change the chart colors:
   :audit      :getter
   :setter     (fn [new-value]
                 (when new-value
-                  (when-not (u.fonts/available-font? new-value)
+                  (when-not (or (u.fonts/available-font? new-value)
+                                (contains? web-safe-fonts new-value))
                     (throw (ex-info (tru "Invalid font {0}" (pr-str new-value)) {:status-code 400}))))
                 (setting/set-value-of-type! :string :application-font new-value)))
 

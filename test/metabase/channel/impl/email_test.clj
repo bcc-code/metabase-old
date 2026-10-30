@@ -235,13 +235,6 @@
                         (-> (notification.tu/with-captured-channel-send!
                               (#'notification.send/send-notification-sync! notification))
                             :channel/email first :message first :content))]
-          (testing "branding link is present without whitelabel"
+          (testing "this fork provides the :whitelabel feature without a token, so the branding link is hidden"
             (mt/with-premium-features #{}
-              (is (str/includes? (render!) "Made with"))))
-          ;; Whitelabeling is only wired up in EE builds (`enable-whitelabeling?` is gated on
-          ;; `config/ee-available?`), so `:whitelabel` can never hide the footer on OSS builds.
-          ;; The EE app-db jobs run this same file with EE on the classpath and cover the hidden case.
-          (mt/when-ee-evailable
-           (testing "branding link is hidden with whitelabel"
-             (mt/with-premium-features #{:whitelabel}
-               (is (not (str/includes? (render!) "Made with")))))))))))
+              (is (not (str/includes? (render!) "Made with"))))))))))

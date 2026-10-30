@@ -27,18 +27,23 @@
 
 (defn- font-face-css
   "Generate @font-face CSS rules for the given font, loading woff2 files from Metabase's
-   bundled font directory. Returns an empty string for custom (non-bundled) fonts since
-   they are loaded via application-font-files."
+   bundled font directory. Returns an empty string for web-safe fonts, which browsers take from the system."
   [font-name]
   (let [dir-name      (str/replace font-name " " "_")
         file-stem     (str/replace font-name " " "")
         css-font-name (css-escape-font-name font-name)
         fonts-url     (absolute-url "/app/fonts")]
-    (if (= font-name "Lato")
+    (cond
+      (contains? appearance/web-safe-fonts font-name)
+      ""
+
+      (= font-name "Lato")
       (str "@font-face { font-family: 'Lato'; font-weight: 400; font-style: normal; font-display: swap;"
            " src: url('" fonts-url "/Lato/lato-v16-latin-regular.woff2') format('woff2'); }\n"
            "@font-face { font-family: 'Lato'; font-weight: 700; font-style: normal; font-display: swap;"
            " src: url('" fonts-url "/Lato/lato-v16-latin-700.woff2') format('woff2'); }\n")
+
+      :else
       (str "@font-face { font-family: '" css-font-name "'; font-weight: 400; font-style: normal; font-display: swap;"
            " src: url('" fonts-url "/" dir-name "/" file-stem "-Regular.woff2') format('woff2'); }\n"
            "@font-face { font-family: '" css-font-name "'; font-weight: 700; font-style: normal; font-display: swap;"
@@ -75,7 +80,7 @@
     {:font-family    (appearance/application-font)
      :logo-url       (absolute-url logo-url)
      :default-logo?  (= logo-url default-logo-url)
-     :brand-color    (sanitize-css-color (get colors "brand"))}))
+     :brand-color    (sanitize-css-color (:brand colors))}))
 
 (defn- full-access-warning
   [client-name]

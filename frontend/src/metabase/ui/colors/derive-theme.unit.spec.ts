@@ -1,3 +1,5 @@
+import Color from "color";
+
 import { deriveChartShadeColor, deriveChartTintColor } from "./accents";
 import { getBaseColorsForThemeDefinitionOnly } from "./constants/base-colors";
 import { PROTECTED_COLORS } from "./constants/protected-colors";
@@ -140,6 +142,27 @@ describe("deriveFullMetabaseTheme", () => {
     expect(derived.colors["accent3"]).toBe(base);
     expect(derived.colors["accent3-light"]).toBe("#4B9CD3");
     expect(derived.colors["accent3-dark"]).toBe(deriveChartShadeColor(base));
+  });
+
+  it("keeps a dark whitelabel brand color readable in the dark color scheme", () => {
+    const darkTheme = getDarkTheme();
+    const whitelabelColors = { brand: "#004D48" };
+
+    const light = deriveFullMetabaseTheme({
+      colorScheme: "light",
+      whitelabelColors,
+    });
+    const dark = deriveFullMetabaseTheme({
+      colorScheme: "dark",
+      whitelabelColors,
+    });
+
+    expect(light.colors["core-brand"]).toBe("#004D48");
+    expect(
+      Color(dark.colors["core-brand"]).contrast(
+        Color(darkTheme.colors["background_page-primary"]),
+      ),
+    ).toBeGreaterThanOrEqual(4.5);
   });
 
   describe("brand ramp", () => {

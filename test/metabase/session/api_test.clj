@@ -782,10 +782,10 @@
       (mt/with-temporary-raw-setting-values [application-logo-url (image-data-uri "image/png" "png bytes")]
         (fetch-illustration :application-logo-url 404)
         (fetch-illustration :not-a-setting 404))))
-  (testing "404 without the whitelabel feature"
+  (testing "served without a premium token, because this fork provides the whitelabel feature"
     (mt/with-premium-features #{}
       (mt/with-temporary-raw-setting-values [login-page-illustration-custom (image-data-uri "image/png" "png bytes")]
-        (fetch-illustration :login-page-illustration-custom 404)))))
+        (fetch-illustration :login-page-illustration-custom 200)))))
 
 (defsetting test-session-api-i18n-setting
   "Public setting whose value nests a deferred-tru, so the locale header has something to translate."

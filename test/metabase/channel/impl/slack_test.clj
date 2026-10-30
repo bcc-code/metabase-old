@@ -6,7 +6,6 @@
    [metabase.channel.core :as channel]
    [metabase.channel.impl.slack :as channel.slack]
    [metabase.channel.slack :as slack]
-   [metabase.config.core :as config]
    [metabase.test :as mt]))
 
 (set! *warn-on-reflection* true)
@@ -147,13 +146,10 @@
                       processed    (mt/with-dynamic-fn-redefs [slack/upload-file! (constantly {:url "a.com", :id "id"})]
                                      (channel/render-notification :channel/slack notification {:recipients [recipient]}))]
                   (->> processed first :blocks last :fields (map :text))))))]
-    (when config/ee-available?
-      (testing "When whitelabeling is enabled, branding content should not be included"
-        (let [links (render-dashboard-links true)]
-          (is (= 1 (count links))))))
-    (testing "When whitelabeling is disabled, branding content should be included"
-      (let [links (render-dashboard-links false)]
-        (is (= 2 (count links)))))))
+    (testing "This fork always provides whitelabeling, so branding content is never included, with or without a token"
+      (doseq [whitelabeling? [true false]]
+        (testing (str "whitelabel token feature: " whitelabeling?)
+          (is (= 1 (count (render-dashboard-links whitelabeling?)))))))))
 
 (defn- test-dashcard
   "A DashboardCard row for card `card-id` on dashboard `dashboard-id`, as a Dashboard Subscription part carries it."

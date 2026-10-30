@@ -19,6 +19,7 @@ export const PREDEFINED_FONT_FAMILIES_FALLBACK_MAP: Record<
   PredefinedFontName,
   string
 > = {
+  Archivo: "Arial, sans-serif",
   Roboto: '"Noto Sans", sans-serif',
   Merriweather: '"Lora", serif',
   "Open Sans": '"Lato", sans-serif',

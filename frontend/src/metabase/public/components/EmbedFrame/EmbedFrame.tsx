@@ -22,6 +22,7 @@ import { SyncedParametersList } from "metabase/parameters/components/SyncedParam
 import { useSyncUrlParameters } from "metabase/parameters/components/use-sync-url-parameters";
 import { getVisibleParameters } from "metabase/parameters/utils/ui";
 import { useSelector } from "metabase/redux";
+import { getShowMetabaseLinks } from "metabase/selectors/whitelabel";
 import { getSetting } from "metabase/settings";
 import { FullWidthContainer } from "metabase/styled-components/layout/FullWidthContainer";
 import { Box, Stack } from "metabase/ui";
@@ -102,7 +103,8 @@ export const EmbedFrame = ({
 }: EmbedFrameProps) => {
   useGlobalTheme(theme);
   const hasEmbedBranding = useSelector(
-    (state) => !getSetting(state, "hide-embed-branding?"),
+    (state) =>
+      !getSetting(state, "hide-embed-branding?") && getShowMetabaseLinks(state),
   );
 
   const isPublicDashboard = Boolean(
