@@ -19,7 +19,7 @@ import { getSavedChartCardId, markChartSaved } from "metabase/metabot/state";
 import { useDispatch, useSelector } from "metabase/redux";
 import { addUndo } from "metabase/redux/undo";
 import { useNavigate } from "metabase/router";
-import { useSetting } from "metabase/settings";
+import { useSetting, useUserSetting } from "metabase/settings";
 import {
   ActionIcon,
   Anchor,
@@ -124,7 +124,13 @@ export function MetabotInlineChart({
     [card, dataset],
   );
 
-  const datasetError = dataset ? getDatasetError(dataset) : undefined;
+  const [showSqlErrors] = useUserSetting("metabot-show-sql-errors");
+  // Without SQL errors, a database error reads as the generic message, whatever its text.
+  const datasetError = dataset
+    ? getDatasetError(
+        showSqlErrors ? dataset : { ...dataset, error_is_curated: false },
+      )
+    : undefined;
   const requestError = error
     ? { message: getGenericErrorMessage(), icon: "warning" as const }
     : undefined;

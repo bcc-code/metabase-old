@@ -716,6 +716,8 @@ export type UserSettings = {
     useExistingUserSession?: boolean;
   } | null;
   "color-scheme"?: string;
+  // Whether to show the SQL and database errors of queries Metabot writes.
+  "metabot-show-sql-errors"?: boolean;
 };
 
 /**

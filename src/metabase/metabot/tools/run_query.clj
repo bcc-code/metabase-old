@@ -19,6 +19,7 @@
    [metabase.metabot.tools.shared :as shared]
    [metabase.metabot.tools.shared.llm-shape :as llm-shape]
    [metabase.metabot.tools.sql.common :as sql.common]
+   [metabase.metabot.tools.sql.masking :as masking]
    [metabase.metabot.tools.util :as tools.u]
    [metabase.models.interface :as mi]
    [metabase.queries.db :as queries.db]
@@ -512,11 +513,20 @@
   {:request-canceled-chan (shared/request-canceled-chan)
    :timeout-ms            query-timeout-ms})
 
+(defn- query-sql
+  "The SQL `query` sends to its database, or nil when it doesn't compile."
+  [query]
+  (try
+    (:query (qp.compile/compile query))
+    (catch Exception _
+      nil)))
+
 (defn- run-page!
   "Run `query` for one page of rows through [[query-execution/execute-page!]].
    Throw this tool's declared errors for permission failures, failures of the query or its database, cancellation and
-   timeouts, and rethrow a failure inside Metabase."
-  [query-id query row-limit]
+   timeouts, and rethrow a failure inside Metabase. A database's error reaches the model with the values it quotes from
+   the data masked, judged against `sql`, the query's SQL when known."
+  [query-id query sql row-limit]
   (try
     (query-execution/execute-page! query row-limit :metabot (run-options))
     (catch clojure.lang.ExceptionInfo e
@@ -525,7 +535,10 @@
           ;; The QP's refusal is ours to state plainly. Its text can name a question the user can't read.
           :query-failed    (cond
                              permissions-error? (no-permission! {:query-id query-id})
-                             caller-facing?     (sql.common/query-failed! {:error-message query-error})
+                             caller-facing?     (sql.common/query-failed!
+                                                 {:error-message (masking/mask-data-values
+                                                                  query-error
+                                                                  (or sql (query-sql query)))})
                              :else              (throw e))
           :query-canceled  (query-canceled! {})
           :query-timed-out (query-timed-out! {:seconds (quot timeout-ms 1000)})
@@ -537,7 +550,7 @@
    `checked-sql` was compiled from it."
   [query-id {:keys [query checked-sql sql-card?]} row-limit allow-non-sql?]
   (if-not checked-sql
-    (run-page! query-id query row-limit)
+    (run-page! query-id query nil row-limit)
     (let [execute qp.pipeline/*execute*
           ;; The driver and SQL the driver step refused, if it refused any.
           refused (atom nil)]
@@ -550,7 +563,7 @@
                                               (reset! refused [driver sql])
                                               (throw (ex-info "Not a read-only SELECT." {}))))
                                           (execute driver native-query respond))]
-          (run-page! query-id query row-limit))
+          (run-page! query-id query checked-sql row-limit))
         (catch Exception e
           ;; The QP reports an exception from the driver step as a failed run, which would reach the model as
           ;; quoted database error text instead of as this tool's refusal.
