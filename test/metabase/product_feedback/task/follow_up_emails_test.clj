@@ -12,7 +12,8 @@
   (testing (str "Make sure that `send-follow-up-email!` only sends a single email instead even when triggered multiple "
                 "times (#4253) follow-up emails get sent to the oldest admin")
     (mt/with-temporary-setting-values [anon-tracking-enabled true
-                                       follow-up-email-sent  false]
+                                       follow-up-email-sent  false
+                                       surveys-enabled       true]
       (with-fake-inbox
         (#'follow-up-emails/send-follow-up-email!)
         (#'follow-up-emails/send-follow-up-email!)

@@ -3,7 +3,6 @@ import { P, match } from "ts-pattern";
 import { c, t } from "ttag";
 
 import { Link } from "metabase/common/components/Link";
-import { UpsellGem } from "metabase/common/components/upsells/components/UpsellGem";
 import { useDocsUrl, useHasEmailSetup } from "metabase/common/hooks";
 import {
   Anchor,
@@ -14,7 +13,6 @@ import {
   Icon,
   Stack,
   Text,
-  Tooltip,
 } from "metabase/ui";
 
 import { useSdkIframeEmbedSetupContext } from "../../../context";
@@ -243,26 +241,18 @@ export const BehaviorCard = () => {
       .otherwise(() => null);
   }, [hasEmailSetup, isSimpleEmbedFeatureAvailable, settings, updateSettings]);
 
-  if (behaviorSection === null) {
+  // Every behavior option needs modular embedding, so without it there is
+  // nothing to configure here.
+  if (!isSimpleEmbedFeatureAvailable || behaviorSection === null) {
     return null;
   }
 
   return (
     <Card p="lg">
       <Flex align="center" justify="space-between" gap="xxs" mb="lg">
-        <Flex align="center" gap="xxs">
-          <Text size="lg" fw="bold">
-            {t`Behavior`}
-          </Text>
-          {!isSimpleEmbedFeatureAvailable && (
-            // eslint-disable-next-line metabase/no-literal-metabase-strings -- Only admins can see the EmbedJS Wizard
-            <Tooltip label={t`Available on Metabase Pro plans`}>
-              <Flex align="center">
-                <UpsellGem />
-              </Flex>
-            </Tooltip>
-          )}
-        </Flex>
+        <Text size="lg" fw="bold">
+          {t`Behavior`}
+        </Text>
         {!!behaviorDocsParams?.page && (
           <Anchor
             data-testid="behavior-docs-link"

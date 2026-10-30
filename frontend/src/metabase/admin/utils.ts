@@ -1,6 +1,5 @@
 import { useLayoutEffect } from "react";
 
-import { shouldShowTenantsUpsell } from "metabase/admin/people/selectors";
 import { useSelector } from "metabase/redux";
 import type { AdminPathKey } from "metabase/redux/store";
 import { createRedirectGuard } from "metabase/route-guards";
@@ -30,7 +29,6 @@ export const RedirectToAllowedSettings = () => {
 export const createTenantsRouteGuard = () =>
   createRedirectGuard(
     (state) =>
-      getHasAdminPath(state, "people") &&
-      (getSetting(state, "use-tenants") || shouldShowTenantsUpsell(state)),
+      getHasAdminPath(state, "people") && getSetting(state, "use-tenants"),
     "/admin/people",
   );

@@ -1,8 +1,8 @@
 import { t } from "ttag";
 
+import { NotFound } from "metabase/common/components/ErrorPages";
 import { Link } from "metabase/common/components/Link";
 import { useHasTokenFeature } from "metabase/common/hooks";
-import { AppearanceUpsellPage } from "metabase/embedding-hub/upsells";
 import { EmbeddingThemeListingApp } from "metabase/embedding/themes/components/ThemeListing";
 import { PLUGIN_WHITELABEL } from "metabase/plugins";
 import { useSetting } from "metabase/settings";
@@ -20,7 +20,7 @@ export function EmbeddingHubAppearancePage() {
   const isFullAppEmbeddingEnabled = useSetting("enable-embedding-interactive");
 
   if (!hasSimpleEmbedding) {
-    return <AppearanceUpsellPage />;
+    return <NotFound />;
   }
 
   return (

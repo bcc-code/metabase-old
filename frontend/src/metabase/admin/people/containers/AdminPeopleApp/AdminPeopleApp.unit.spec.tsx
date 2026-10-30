@@ -4,8 +4,7 @@ import {
   createMockSettingsState,
   createMockState,
 } from "__support__/state";
-import { renderWithProviders, screen, within } from "__support__/ui";
-import { UpsellTenants } from "metabase/admin/upsells/UpsellTenants";
+import { renderWithProviders, screen } from "__support__/ui";
 import { createTenantsRouteGuard } from "metabase/admin/utils";
 import { Route } from "metabase/router";
 import type { EmbeddingHomepageStatus } from "metabase-types/api";
@@ -22,36 +21,31 @@ interface SetupOpts {
   isSuperUser?: boolean;
   useTenants?: boolean;
   setupEmbeddingAutoenabled?: boolean;
-  embeddingHomepage?: "hidden" | "visible" | "dismissed";
+  embeddingHomepage?: EmbeddingHomepageStatus;
   hasTenantsFeature?: boolean;
 }
 
-const setup = async (inputSetupOpts?: Partial<SetupOpts>) => {
-  const defaultSetupOpts: SetupOpts = {
-    activeUsersCount: 50,
-    ssoEnabled: false,
-    isSuperUser: true,
-    useTenants: false,
-    setupEmbeddingAutoenabled: false,
-    embeddingHomepage: "hidden",
-    hasTenantsFeature: false,
-  };
-  const setupOpts = Object.assign(defaultSetupOpts, inputSetupOpts ?? {});
-
+const setup = async ({
+  activeUsersCount = 50,
+  ssoEnabled = false,
+  isSuperUser = true,
+  useTenants = false,
+  setupEmbeddingAutoenabled = false,
+  embeddingHomepage = "hidden",
+  hasTenantsFeature = false,
+}: SetupOpts = {}) => {
   const state = createMockState({
     currentUser: createMockUser({
-      is_superuser: setupOpts.isSuperUser,
+      is_superuser: isSuperUser,
     }),
     settings: createMockSettingsState({
-      "active-users-count": setupOpts.activeUsersCount,
-      "embedding-homepage":
-        // Unjustified type cast. FIXME
-        setupOpts.embeddingHomepage as EmbeddingHomepageStatus,
-      "setup-embedding-autoenabled": setupOpts.setupEmbeddingAutoenabled,
-      "use-tenants": setupOpts.useTenants,
+      "active-users-count": activeUsersCount,
+      "embedding-homepage": embeddingHomepage,
+      "setup-embedding-autoenabled": setupEmbeddingAutoenabled,
+      "use-tenants": useTenants,
       "token-features": createMockTokenFeatures({
-        sso_saml: setupOpts.ssoEnabled,
-        tenants: setupOpts.hasTenantsFeature,
+        sso_saml: ssoEnabled,
+        tenants: hasTenantsFeature,
       }),
     }),
   });
@@ -92,10 +86,9 @@ const setupTenantRoute = async (initialRoute: string) => {
 
   renderWithProviders(
     <Route path="/admin/people" element={<AdminPeopleApp />}>
+      <Route index element={<>people listing</>} />
       <Route path="tenants" element={<TenantsRouteGuard />}>
-        <Route path="groups" element={<UpsellTenants />} />
-        <Route path="people" element={<UpsellTenants />} />
-        <Route index element={<UpsellTenants />} />
+        <Route index element={<>tenants page</>} />
       </Route>
     </Route>,
     {
@@ -126,66 +119,41 @@ describe("AdminPeopleApp", () => {
       await assertNavLink("Tenant users", "/admin/people/tenants/people");
     });
 
-    it("should render a tenant upsell link for embedding setup instances without tenants", async () => {
-      await setup({ setupEmbeddingAutoenabled: true });
+    it.each<Pick<SetupOpts, "setupEmbeddingAutoenabled" | "embeddingHomepage">>(
+      [{ setupEmbeddingAutoenabled: true }, { embeddingHomepage: "visible" }],
+    )(
+      "should not link to tenants on embedding setup instances that do not use tenants (%o)",
+      async (opts) => {
+        await setup(opts);
 
-      const tenantsLink = await assertNavLink(
-        "Tenants",
-        "/admin/people/tenants",
-      );
+        await assertNavLink("People", "/admin/people");
+        expect(screen.queryByText("Tenants")).not.toBeInTheDocument();
+        expect(screen.queryByTestId("upsell-gem")).not.toBeInTheDocument();
+      },
+    );
 
-      expect(within(tenantsLink).getByTestId("upsell-gem")).toBeInTheDocument();
-    });
+    it("should not show a paid-plan nudge to admins with many users and no SSO", async () => {
+      await setup({ activeUsersCount: 500 });
 
-    it("should render tenant upsell links when only the legacy embedding homepage signal is present", async () => {
-      await setup({ embeddingHomepage: "visible" });
-
-      const tenantsLink = await assertNavLink(
-        "Tenants",
-        "/admin/people/tenants",
-      );
-
-      expect(within(tenantsLink).getByTestId("upsell-gem")).toBeInTheDocument();
+      await assertNavLink("People", "/admin/people");
+      expect(
+        screen.queryByText(/tired of manually managing people/i),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("link", { name: /metabase pro/i }),
+      ).not.toBeInTheDocument();
     });
   });
 
-  describe("tenant upsell routes", () => {
-    it("should render the tenant upsell on /admin/people/tenants", async () => {
+  describe("tenant routes", () => {
+    it("should redirect /admin/people/tenants to people when tenants are not in use", async () => {
       await setupTenantRoute("/admin/people/tenants");
 
+      expect(await screen.findByText("people listing")).toBeInTheDocument();
+      expect(screen.queryByText("tenants page")).not.toBeInTheDocument();
       expect(
-        await screen.findByText("Use a multi-tenant user strategy"),
-      ).toBeInTheDocument();
-    });
-  });
-
-  describe("nudge to pro", () => {
-    const nudgeText = /tired of manually managing people/i;
-
-    it("should be visible when user is admin, has 50 active users, and SSO is not available", () => {
-      setup();
-      expect(screen.getByText(nudgeText)).toBeInTheDocument();
-      const link = screen.getByRole("link", { name: /try metabase pro/i });
-      expect(link).toBeInTheDocument();
-      expect(link).toHaveAttribute(
-        "href",
-        expect.stringMatching(/^https:\/\/www.metabase.com\/upgrade/),
-      );
-    });
-
-    it("should not be visible with less than 50 users", () => {
-      setup({ activeUsersCount: 10 });
-      expect(screen.queryByText(nudgeText)).not.toBeInTheDocument();
-    });
-
-    it("should not be visible when user is not admin", () => {
-      setup({ isSuperUser: false });
-      expect(screen.queryByText(nudgeText)).not.toBeInTheDocument();
-    });
-
-    it("should not be visible when SSO is already available", () => {
-      setup({ ssoEnabled: true });
-      expect(screen.queryByText(nudgeText)).not.toBeInTheDocument();
+        screen.queryByText("Use a multi-tenant user strategy"),
+      ).not.toBeInTheDocument();
     });
   });
 });
@@ -197,7 +165,4 @@ async function assertNavLink(linkText: string, linkHref: string) {
 
   expect(link).toBeInTheDocument();
   expect(link).toHaveAttribute("href", linkHref);
-
-  // Unjustified type cast. FIXME
-  return link as HTMLElement;
 }

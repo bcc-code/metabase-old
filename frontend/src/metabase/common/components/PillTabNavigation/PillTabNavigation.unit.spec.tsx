@@ -264,15 +264,7 @@ describe("PillTabNavigation", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders an upsell gem for a gated tab", () => {
-    setup({
-      tabs: [{ label: "Usage", to: "/monitor/example/usage", isGated: true }],
-    });
-
-    expect(screen.getByTestId("upsell-gem")).toBeInTheDocument();
-  });
-
-  it("does not render an upsell gem for an ungated tab", () => {
+  it("does not render an upsell gem", () => {
     setup();
 
     expect(screen.queryByTestId("upsell-gem")).not.toBeInTheDocument();

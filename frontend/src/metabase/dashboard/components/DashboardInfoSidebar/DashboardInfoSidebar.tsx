@@ -17,8 +17,6 @@ import {
 } from "metabase/common/components/Sidesheet";
 import { SidesheetEditableDescription } from "metabase/common/components/Sidesheet/components/SidesheetEditableDescription";
 import SidesheetS from "metabase/common/components/Sidesheet/sidesheet.module.css";
-import { InsightsUpsellTab } from "metabase/common/components/upsells/InsightsUpsellTab";
-import { InsightsTabOrLink } from "metabase/common/components/upsells/components/InsightsTabOrLink";
 import { DASHBOARD_DESCRIPTION_MAX_LENGTH } from "metabase/common/utils/dashboard";
 import { getUser } from "metabase/current-user";
 import { revertToRevision, updateDashboard } from "metabase/dashboard/actions";
@@ -26,7 +24,7 @@ import {
   type DashboardContextReturned,
   useDashboardContext,
 } from "metabase/dashboard/context";
-import { PLUGIN_MODERATION } from "metabase/plugins";
+import { PLUGIN_AUDIT, PLUGIN_MODERATION } from "metabase/plugins";
 import { useDispatch, useSelector } from "metabase/redux";
 import { Stack, Tabs, Text } from "metabase/ui";
 import type {
@@ -42,7 +40,6 @@ import { DashboardEntityIdCard } from "./DashboardEntityIdCard";
 enum Tab {
   Overview = "overview",
   History = "history",
-  Insights = "insights",
 }
 
 export function DashboardInfoSidebar() {
@@ -148,7 +145,7 @@ export function DashboardInfoSidebarInner({
               {!isIADashboard && (
                 <Tabs.Tab value={Tab.History}>{t`History`}</Tabs.Tab>
               )}
-              <InsightsTabOrLink dashboard={dashboard} />
+              <PLUGIN_AUDIT.InsightsLink dashboard={dashboard} />
             </Tabs.List>
             <SidesheetTabPanelContainer>
               <Tabs.Panel value={Tab.Overview}>
@@ -169,9 +166,6 @@ export function DashboardInfoSidebarInner({
                   currentUser={currentUser}
                   moderationReviews={dashboard.moderation_reviews}
                 />
-              </Tabs.Panel>
-              <Tabs.Panel value={Tab.Insights}>
-                <InsightsUpsellTab model="dashboard" />
               </Tabs.Panel>
             </SidesheetTabPanelContainer>
           </Tabs>

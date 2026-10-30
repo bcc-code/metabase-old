@@ -29,8 +29,8 @@ import { getDataStudioSettingsRoutes } from "./settings/routes";
 import { getDataStudioSnippetRoutes } from "./snippets/routes";
 
 /**
- * The Data Studio layouts and upsell pages, in their own chunk. The route guards
- * stay eager: they have to decide before there is anything to show.
+ * The Data Studio layouts, in their own chunk. The route guards stay eager:
+ * they have to decide before there is anything to show.
  */
 const dataStudioLayout = () =>
   import(
@@ -65,27 +65,6 @@ const gitSyncSectionLayout = () =>
     /* webpackChunkName: "data-studio" */ "./app/pages/GitSyncSectionLayout"
   ).then(({ GitSyncSectionLayout }) => ({ Component: GitSyncSectionLayout }));
 
-const dependenciesUpsellPage = () =>
-  import(
-    /* webpackChunkName: "data-studio-upsells" */ "./upsells/pages/DependenciesUpsellPage"
-  ).then(({ DependenciesUpsellPage }) => ({
-    Component: DependenciesUpsellPage,
-  }));
-
-const libraryUpsellPage = () =>
-  import(
-    /* webpackChunkName: "data-studio-upsells" */ "./upsells/pages/LibraryUpsellPage"
-  ).then(({ LibraryUpsellPage }) => ({
-    Component: LibraryUpsellPage,
-  }));
-
-const schemaViewerUpsellPage = () =>
-  import(
-    /* webpackChunkName: "data-studio-upsells" */ "./upsells/pages/SchemaViewerUpsellPage"
-  ).then(({ SchemaViewerUpsellPage }) => ({
-    Component: SchemaViewerUpsellPage,
-  }));
-
 export function getDataStudioRoutes(IsAdmin: RouteComponent) {
   return (
     <>
@@ -116,29 +95,19 @@ export function getDataStudioRoutes(IsAdmin: RouteComponent) {
           {PLUGIN_DATA_APPS.isEnabled &&
             PLUGIN_DATA_APPS.getDataStudioRoutes(IsAdmin)}
           {getDataStudioSettingsRoutes()}
-          {PLUGIN_LIBRARY.isEnabled ? (
-            PLUGIN_LIBRARY.getDataStudioLibraryRoutes(IsAdmin)
-          ) : (
-            <Route path="library" lazy={libraryUpsellPage} />
-          )}
-          {PLUGIN_LIBRARY.isEnabled ? (
-            PLUGIN_LIBRARY.getDataStudioDashboardRoutes()
-          ) : (
-            <Route path="dashboards" lazy={libraryUpsellPage} />
-          )}
-          {PLUGIN_DEPENDENCIES.isEnabled ? (
+          {PLUGIN_LIBRARY.isEnabled &&
+            PLUGIN_LIBRARY.getDataStudioLibraryRoutes(IsAdmin)}
+          {PLUGIN_LIBRARY.isEnabled &&
+            PLUGIN_LIBRARY.getDataStudioDashboardRoutes()}
+          {PLUGIN_DEPENDENCIES.isEnabled && (
             <Route path="dependencies" lazy={dependenciesSectionLayout}>
               {PLUGIN_DEPENDENCIES.getDataStudioDependencyRoutes()}
             </Route>
-          ) : (
-            <Route path="dependencies" lazy={dependenciesUpsellPage} />
           )}
-          {PLUGIN_SCHEMA_VIEWER.isEnabled ? (
+          {PLUGIN_SCHEMA_VIEWER.isEnabled && (
             <Route path="schema-viewer">
               {PLUGIN_SCHEMA_VIEWER.getDataStudioSchemaViewerRoutes()}
             </Route>
-          ) : (
-            <Route path="schema-viewer" lazy={schemaViewerUpsellPage} />
           )}
           <Route path="git-sync" lazy={gitSyncSectionLayout} />
 
@@ -209,5 +178,7 @@ function getIndexPath(state: State) {
   if (canAccessTransforms(state)) {
     return Urls.transformList();
   }
-  return Urls.dataStudioLibrary();
+  return PLUGIN_LIBRARY.isEnabled
+    ? Urls.dataStudioLibrary()
+    : Urls.dataStudioSnippets();
 }

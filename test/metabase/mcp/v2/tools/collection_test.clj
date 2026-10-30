@@ -368,7 +368,7 @@
             (is (= "official" (:authority_level payload)))))))
     (testing "without the feature it is refused"
       (mt/with-premium-features #{}
-        (is (re-find #"paid feature"
+        (is (re-find #"is not available on this instance"
                      (tool-error (call-tool! :crowberto {:method "create" :name "Not official"
                                                          :authority_level "official"}))))))
     (testing "a non-admin is refused even with the feature"
@@ -391,7 +391,7 @@
   (testing "without the feature the change is refused"
     (mt/with-temp [:model/Collection coll {:name "Stays plain"}]
       (mt/with-premium-features #{}
-        (is (re-find #"paid feature"
+        (is (re-find #"is not available on this instance"
                      (tool-error (call-tool! :crowberto {:method "update" :id (:id coll)
                                                          :authority_level "official"}))))
         (is (nil? (t2/select-one-fn :authority_level :model/Collection :id (:id coll)))))))

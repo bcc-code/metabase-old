@@ -22,14 +22,15 @@ describe("DataStudioLayout", () => {
   });
 
   describe("Remote sync button", () => {
-    it("should show Remote sync button when git settings is visible", async () => {
+    it("should not link to Remote sync without the remote sync feature", async () => {
       setup({ remoteSyncEnabled: false });
 
       await waitFor(() => {
         expect(screen.getByTestId("data-studio-nav")).toBeInTheDocument();
       });
 
-      expect(screen.getByLabelText("Remote sync")).toBeInTheDocument();
+      expect(screen.queryByLabelText("Remote sync")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("upsell-gem")).not.toBeInTheDocument();
     });
 
     it("should hide Remote sync button when git settings is not visible", async () => {

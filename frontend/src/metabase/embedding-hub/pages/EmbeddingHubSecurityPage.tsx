@@ -5,7 +5,6 @@ import {
   useListEmbeddableDashboardsQuery,
 } from "metabase/api";
 import { useHasTokenFeature } from "metabase/common/hooks";
-import { EmbeddingHubUpsellBanner } from "metabase/embedding-hub/components/EmbeddingHubUpsellBanner";
 import { EmbeddedResources } from "metabase/embedding/settings/EmbeddedResources";
 import { EmbeddingMethodsCard } from "metabase/embedding/settings/EmbeddingMethodsCard";
 import { EmbeddingSecretKeyWidget } from "metabase/embedding/settings/EmbeddingSecretKeyWidget";
@@ -19,9 +18,6 @@ import {
   SettingsSection,
 } from "metabase/settings-components";
 import { Box } from "metabase/ui";
-
-const UPSELL_CAMPAIGN = "embedding-hub";
-const UPSELL_LOCATION = "embedding-hub-security";
 
 /**
  * Card order comes from the design: embedding methods, CORS, SameSite, secret
@@ -47,14 +43,6 @@ export function EmbeddingHubSecurityPage() {
   return (
     <SettingsPageWrapper title={t`Security`}>
       <EmbeddingMethodsCard />
-
-      {!hasSimpleEmbedding && (
-        <EmbeddingHubUpsellBanner
-          title={t`Upgrade to Metabase Pro to access the SDK for React and more advanced options.`}
-          campaign={UPSELL_CAMPAIGN}
-          location={UPSELL_LOCATION}
-        />
-      )}
 
       <SettingsSection>
         <CorsInputWidget />

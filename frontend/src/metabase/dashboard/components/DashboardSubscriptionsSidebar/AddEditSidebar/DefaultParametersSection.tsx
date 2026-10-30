@@ -3,7 +3,7 @@ import { t } from "ttag";
 
 import CS from "metabase/css/core/index.css";
 import { formatDateValue } from "metabase/parameters/utils/date-formatting";
-import { Ellipsified, Icon, Title } from "metabase/ui";
+import { Ellipsified, Title } from "metabase/ui";
 import { conjunct } from "metabase/utils/formatting";
 import { isNotNull } from "metabase/utils/types";
 import type { Parameter, ParameterValueOrArray } from "metabase-types/api";
@@ -61,15 +61,7 @@ function DefaultParametersSection({
 
   return (
     <div className={cx(className, CS.textBold)}>
-      <Title order={4}>
-        {t`Filter values`}
-        <Icon
-          name="info"
-          className={cx(CS.textMedium, CS.ml1)}
-          size={12}
-          tooltip={t`Customize filter values for each subscription on Pro and Enterprise plans.`}
-        />
-      </Title>
+      <Title order={4}>{t`Filter values`}</Title>
       <div
         className={cx(CS.pt1, CS.textSmall, CS.textNormal, CS.textMedium)}
       >{t`If a dashboard filter has a default value, it'll be applied when your subscription is sent.`}</div>

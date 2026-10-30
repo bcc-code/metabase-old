@@ -89,10 +89,10 @@ describe("TransformListPage", () => {
       expect(screen.getByText("Python library")).toBeInTheDocument();
     });
 
-    it("shows the Python library row on a paid plan without the transforms-python feature (upsell)", async () => {
+    it("does not show the Python library row on a paid plan without the transforms-python feature", async () => {
       await setup({ tokenFeatures: { advanced_permissions: true } });
 
-      expect(screen.getByText("Python library")).toBeInTheDocument();
+      expect(screen.queryByText("Python library")).not.toBeInTheDocument();
     });
   });
 });

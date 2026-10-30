@@ -6,16 +6,11 @@ import { Route } from "metabase/router";
 import { AreaTab } from "./AreaTab";
 
 interface SetupOpts {
-  isGated?: boolean;
   isSelected?: boolean;
   rightSection?: ReactNode;
 }
 
-const setup = ({
-  isGated = false,
-  isSelected = false,
-  rightSection,
-}: SetupOpts = {}) => {
+const setup = ({ isSelected = false, rightSection }: SetupOpts = {}) => {
   renderWithProviders(
     <Route
       path="/"
@@ -24,7 +19,6 @@ const setup = ({
           label="Dependency diagnostics"
           icon="search_check"
           to="/monitor/dependency-diagnostics"
-          isGated={isGated}
           isSelected={isSelected}
           rightSection={rightSection}
           showLabel
@@ -50,25 +44,17 @@ describe("AreaTab", () => {
     expect(tab).not.toHaveAttribute("aria-current");
   });
 
-  it("shows an upsell gem for a gated tab", () => {
-    setup({ isGated: true });
-
-    expect(screen.getByTestId("upsell-gem")).toBeInTheDocument();
-  });
-
-  it("does not show an upsell gem for an ungated tab", () => {
-    setup({ isGated: false });
+  it("does not show an upsell gem", () => {
+    setup();
 
     expect(screen.queryByTestId("upsell-gem")).not.toBeInTheDocument();
   });
 
-  it("shows a custom right section instead of an upsell gem", () => {
+  it("shows a custom right section", () => {
     setup({
-      isGated: true,
       rightSection: <span data-testid="custom-right-section" />,
     });
 
     expect(screen.getByTestId("custom-right-section")).toBeInTheDocument();
-    expect(screen.queryByTestId("upsell-gem")).not.toBeInTheDocument();
   });
 });

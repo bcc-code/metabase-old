@@ -57,8 +57,11 @@ describe("AdditionalHelpButtonGroup", () => {
       screen.getByRole("link", { name: /Invite a teammate to help you/ }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Contact Support" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("link", { name: "Contact Support" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Not your typical support agents/),
+    ).not.toBeInTheDocument();
   });
 
   it("hide 'Read the docs' link when showMetabaseLinks is false & whitelabel feature is enabled", () => {

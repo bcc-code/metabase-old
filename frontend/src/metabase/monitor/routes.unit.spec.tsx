@@ -129,12 +129,6 @@ jest.mock(
 jest.mock("metabase/monitor/tools/components/LogLevelsModal", () => ({
   LogLevelsModal: () => null,
 }));
-jest.mock("metabase/monitor/tools/components/MonitorUpsell", () => ({
-  MonitorUpsell: () => (
-    <div data-testid="errors-upsell">{"Erroring questions"}</div>
-  ),
-}));
-
 jest.mock("metabase/monitor/tools/components/TaskListPage", () => ({
   TaskListPage: () => <div data-testid="task-list-page">{"Task list"}</div>,
 }));
@@ -159,11 +153,6 @@ jest.mock(
     ),
   }),
 );
-
-const UPSELL_TITLE =
-  "Find and fix broken dependencies without hunting them down";
-const CONTENT_DIAGNOSTICS_UPSELL_TITLE =
-  "Find and clean up stale content without hunting it down";
 
 type SetupOpts = {
   initialRoute: string;
@@ -221,11 +210,11 @@ describe("monitor routes", () => {
   // Route factories name their page in an `import()`, so nothing type-checks the
   // path or the export. Resolving every lazy loader is the cheap guard against a
   // typo that would otherwise surface as a blank page. Runs against default (OSS)
-  // plugin state, so both diagnostics sections are on their upsell branch.
+  // plugin state, so neither diagnostics section is mounted.
   it("resolves every lazy page", async () => {
     const loaders = lazyLoaders(getMonitorRoutes());
 
-    expect(loaders).toHaveLength(19);
+    expect(loaders).toHaveLength(11);
 
     for (const load of loaders) {
       expect((await load()).Component).toBeDefined();
@@ -234,30 +223,25 @@ describe("monitor routes", () => {
 
   describe("getMonitorRoutes", () => {
     describe("OSS (Dependency Diagnostics disabled)", () => {
-      it("renders the upsell at /monitor/dependency-diagnostics", async () => {
-        setup({ initialRoute: "/monitor/dependency-diagnostics" });
+      it.each([
+        "/monitor/dependency-diagnostics",
+        "/monitor/dependency-diagnostics/broken",
+      ])("renders NotFound at %s", async (initialRoute) => {
+        setup({ initialRoute });
 
-        expect(await screen.findByText(UPSELL_TITLE)).toBeInTheDocument();
+        expect(await screen.findByLabelText("error page")).toBeInTheDocument();
         expect(
           screen.queryByTestId("diagnostics-section"),
         ).not.toBeInTheDocument();
-      });
-
-      it("renders the upsell for child paths (e.g. /broken)", async () => {
-        setup({ initialRoute: "/monitor/dependency-diagnostics/broken" });
-
-        expect(await screen.findByText(UPSELL_TITLE)).toBeInTheDocument();
         expect(screen.queryByText("Broken page")).not.toBeInTheDocument();
       });
     });
 
     describe("OSS (Content Diagnostics disabled)", () => {
-      it("renders the upsell for content diagnostics child paths", async () => {
+      it("renders NotFound for content diagnostics child paths", async () => {
         setup({ initialRoute: "/monitor/content-diagnostics/stale" });
 
-        expect(
-          await screen.findByText(CONTENT_DIAGNOSTICS_UPSELL_TITLE),
-        ).toBeInTheDocument();
+        expect(await screen.findByLabelText("error page")).toBeInTheDocument();
         expect(
           screen.queryByTestId("content-diagnostics-section"),
         ).not.toBeInTheDocument();
@@ -267,8 +251,21 @@ describe("monitor routes", () => {
       });
     });
 
+    describe("OSS (paid monitoring sections disabled)", () => {
+      it.each(["/monitor/sessions", "/monitor/api-key-usage"])(
+        "renders NotFound at %s",
+        async (initialRoute) => {
+          setup({ initialRoute });
+
+          expect(
+            await screen.findByLabelText("error page"),
+          ).toBeInTheDocument();
+        },
+      );
+    });
+
     describe("EE (Dependency Diagnostics enabled)", () => {
-      it("renders the diagnostics section and child routes instead of the upsell", async () => {
+      it("renders the diagnostics section and child routes", async () => {
         setupEnterpriseOnlyPlugin("monitor_dependency_diagnostics");
 
         setup({ initialRoute: "/monitor/dependency-diagnostics/broken" });
@@ -277,7 +274,6 @@ describe("monitor routes", () => {
           await screen.findByTestId("diagnostics-section"),
         ).toBeInTheDocument();
         expect(screen.getByText("Broken page")).toBeInTheDocument();
-        expect(screen.queryByText(UPSELL_TITLE)).not.toBeInTheDocument();
       });
 
       it("redirects the diagnostics index to the broken route", async () => {
@@ -290,7 +286,7 @@ describe("monitor routes", () => {
     });
 
     describe("EE (Content Diagnostics enabled)", () => {
-      it("renders the content diagnostics section and child routes instead of the upsell", async () => {
+      it("renders the content diagnostics section and child routes", async () => {
         setupEnterpriseOnlyPlugin("monitor_content_diagnostics");
 
         setup({ initialRoute: "/monitor/content-diagnostics/stale" });
@@ -299,9 +295,6 @@ describe("monitor routes", () => {
           await screen.findByTestId("content-diagnostics-section"),
         ).toBeInTheDocument();
         expect(screen.getByText("Stale content page")).toBeInTheDocument();
-        expect(
-          screen.queryByText(CONTENT_DIAGNOSTICS_UPSELL_TITLE),
-        ).not.toBeInTheDocument();
       });
 
       it("redirects the content diagnostics index to the stale route", async () => {
@@ -317,6 +310,8 @@ describe("monitor routes", () => {
 
     describe("index redirect (/monitor)", () => {
       it("sends analysts to dependency diagnostics", async () => {
+        setupEnterpriseOnlyPlugin("monitor_dependency_diagnostics");
+
         const { router } = setup({
           initialRoute: "/monitor",
           user: createMockUser({
@@ -330,6 +325,14 @@ describe("monitor routes", () => {
           expect(router?.location.pathname).toBe(
             "/monitor/dependency-diagnostics",
           ),
+        );
+      });
+
+      it("sends admins to background tasks when dependency diagnostics are not available", async () => {
+        const { router } = setup({ initialRoute: "/monitor" });
+
+        await waitFor(() =>
+          expect(router?.location.pathname).toBe(Urls.monitorTasksList()),
         );
       });
 
@@ -465,10 +468,10 @@ describe("monitor routes", () => {
       },
     );
 
-    it("renders the Erroring questions upsell at /monitor/errors without the audit_app feature", async () => {
+    it("renders NotFound at /monitor/errors without the erroring questions plugin", async () => {
       setup({ initialRoute: "/monitor/errors" });
 
-      expect(await screen.findByTestId("errors-upsell")).toBeInTheDocument();
+      expect(await screen.findByLabelText("error page")).toBeInTheDocument();
     });
   });
 
@@ -510,7 +513,6 @@ describe("monitor routes", () => {
       ["/admin/tools/jobs/sync", "jobs-page"],
       ["/admin/tools/logs", "logs-page"],
       ["/admin/tools/logs/levels", "logs-page"],
-      ["/admin/tools/errors", "errors-upsell"],
       ["/admin/tools/model-caching", "model-persistence-log-page"],
       ["/admin/tools/model-caching/9", "model-persistence-log-page"],
       ["/admin/tools/notifications", "notifications-page"],
@@ -524,7 +526,7 @@ describe("monitor routes", () => {
     it("redirects the legacy /admin/tools index into the Monitor space", async () => {
       setup({ initialRoute: "/admin/tools" });
 
-      expect(await screen.findByText(UPSELL_TITLE)).toBeInTheDocument();
+      expect(await screen.findByTestId("task-list-page")).toBeInTheDocument();
     });
   });
 });

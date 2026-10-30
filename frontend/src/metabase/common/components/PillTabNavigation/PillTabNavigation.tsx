@@ -2,7 +2,6 @@ import cx from "classnames";
 import { type KeyboardEvent, useId } from "react";
 
 import { ForwardRefLink } from "metabase/common/components/Link";
-import { UpsellGem } from "metabase/common/components/upsells/components/UpsellGem";
 import { useLocation } from "metabase/router";
 import { Ellipsified, FixedSizeIcon, Flex } from "metabase/ui";
 import type { IconName } from "metabase-types/api";
@@ -13,7 +12,6 @@ import { TabCountBadge, type TabCountState } from "./TabCountBadge";
 export type PillTab = {
   label: string;
   icon?: IconName;
-  isGated?: boolean;
   count?: TabCountState;
   isSelected?: boolean | ((pathname: string) => boolean);
   "data-testid"?: string;
@@ -107,7 +105,6 @@ export function PillTabNavigation({
             {tab.count !== undefined && (
               <TabCountBadge id={countId} count={tab.count} />
             )}
-            {tab.isGated && <UpsellGem.New size={14} />}
           </>
         );
         return tab.to === undefined ? (

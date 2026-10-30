@@ -10,7 +10,7 @@ const landOnAppearanceStep = (overrides?: Parameters<typeof setup>[0]) =>
   });
 
 const getOptionCardsWrapper = () => {
-  const wrapper = screen.getByText("Behavior").closest("[style*='opacity']");
+  const wrapper = screen.getByText("Parameters").closest("[style*='opacity']");
   if (!wrapper) {
     throw new Error("Could not find option cards wrapper with opacity style");
   }
@@ -33,7 +33,7 @@ describe("AppearanceStep > option cards dim state when landing on this step dire
       });
 
       await waitFor(() => {
-        expect(screen.getByText("Behavior")).toBeVisible();
+        expect(screen.getByText("Parameters")).toBeVisible();
       });
 
       expect(getOptionCardsWrapper()).toHaveStyle({ opacity: "1" });

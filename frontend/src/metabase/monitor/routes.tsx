@@ -1,17 +1,17 @@
-import { createElement } from "react";
-
 import { loadCodeEditor } from "metabase/common/components/CodeEditor/lazy";
 import { NotFound } from "metabase/common/components/ErrorPages";
 import {
   lazyModalRouteElement,
   modalRoute,
 } from "metabase/common/components/ModalRoute";
-import { canAccessDependencyDiagnostics } from "metabase/common/monitor/selectors";
+import {
+  canAccessContentDiagnostics,
+  canAccessDependencyDiagnostics,
+} from "metabase/common/monitor/selectors";
 // From the file rather than the barrel beside it: the barrel also re-exports
 // the page this file loads lazily, so importing the modal through it would hold
 // the page in the initial bundle.
 import { ModelPersistenceLogJobModal } from "metabase/monitor/tools/components/ModelPersistenceLogJobs/ModelPersistenceLogJobModal";
-import { MonitorUpsell } from "metabase/monitor/tools/components/MonitorUpsell";
 import {
   getNotificationsRoutes,
   getTasksRoutes,
@@ -62,32 +62,11 @@ const dependencyDiagnosticsSectionLayout = () =>
     Component: DependencyDiagnosticsSectionLayout,
   }));
 
-const dependencyDiagnosticsUpsellPage = () =>
-  import(
-    /* webpackChunkName: "monitor" */ "metabase/monitor/dependency-diagnostics/DependencyDiagnosticsUpsellPage"
-  ).then(({ DependencyDiagnosticsUpsellPage }) => ({
-    Component: DependencyDiagnosticsUpsellPage,
-  }));
-
 const contentDiagnosticsSectionLayout = () =>
   import(
     /* webpackChunkName: "monitor" */ "metabase/monitor/content-diagnostics/ContentDiagnosticsSectionLayout"
   ).then(({ ContentDiagnosticsSectionLayout }) => ({
     Component: ContentDiagnosticsSectionLayout,
-  }));
-
-const contentDiagnosticsUpsellPage = () =>
-  import(
-    /* webpackChunkName: "monitor" */ "metabase/monitor/content-diagnostics/ContentDiagnosticsUpsellPage"
-  ).then(({ ContentDiagnosticsUpsellPage }) => ({
-    Component: ContentDiagnosticsUpsellPage,
-  }));
-
-const apiKeyUsageUpsellPage = () =>
-  import(
-    /* webpackChunkName: "monitor" */ "metabase/monitor/api-key-usage/ApiKeyUsageUpsellPage"
-  ).then(({ ApiKeyUsageUpsellPage }) => ({
-    Component: ApiKeyUsageUpsellPage,
   }));
 
 const jobInfoApp = () =>
@@ -109,13 +88,6 @@ const modelPersistenceLogPage = () =>
     Component: ModelPersistenceLogPage,
   }));
 
-const sessionManagementUpsellPage = () =>
-  import(
-    /* webpackChunkName: "monitor" */ "metabase/monitor/session-management/SessionManagementUpsellPage"
-  ).then(({ SessionManagementUpsellPage }) => ({
-    Component: SessionManagementUpsellPage,
-  }));
-
 // The log levels modal renders a code editor, which nothing else on the logs
 // page needs. Its parent route is already lazy, but a modal declared with
 // `modalRoute` holds its component eagerly.
@@ -134,37 +106,27 @@ export function getMonitorRoutes() {
     <Route element={<CanAccessMonitor />}>
       <Route path="monitor" lazy={monitorLayout}>
         <Route index element={<MonitorIndexRedirect />} />
-        <Route element={<CanAccessDependencyDiagnostics />}>
-          {PLUGIN_MONITOR.isDependencyDiagnosticsEnabled ? (
+        {PLUGIN_MONITOR.isDependencyDiagnosticsEnabled && (
+          <Route element={<CanAccessDependencyDiagnostics />}>
             <Route
               path="dependency-diagnostics"
               lazy={dependencyDiagnosticsSectionLayout}
             >
               {PLUGIN_MONITOR.getDependencyDiagnosticsRoutes()}
             </Route>
-          ) : (
-            <Route path="dependency-diagnostics">
-              <Route index lazy={dependencyDiagnosticsUpsellPage} />
-              <Route path="*" lazy={dependencyDiagnosticsUpsellPage} />
-            </Route>
-          )}
-        </Route>
+          </Route>
+        )}
 
-        <Route element={<CanAccessContentDiagnostics />}>
-          {PLUGIN_MONITOR.isContentDiagnosticsEnabled ? (
+        {PLUGIN_MONITOR.isContentDiagnosticsEnabled && (
+          <Route element={<CanAccessContentDiagnostics />}>
             <Route
               path="content-diagnostics"
               lazy={contentDiagnosticsSectionLayout}
             >
               {PLUGIN_MONITOR.getContentDiagnosticsRoutes()}
             </Route>
-          ) : (
-            <Route path="content-diagnostics">
-              <Route index lazy={contentDiagnosticsUpsellPage} />
-              <Route path="*" lazy={contentDiagnosticsUpsellPage} />
-            </Route>
-          )}
-        </Route>
+          </Route>
+        )}
 
         <Route element={<CanAccessMonitoringTools />}>
           <Route path="tasks">{getTasksRoutes()}</Route>
@@ -174,12 +136,9 @@ export function getMonitorRoutes() {
           <Route path="logs" lazy={logs}>
             {lazyModalRouteElement("levels", logLevelsModal)}
           </Route>
-          <Route
-            path="errors"
-            element={createElement(
-              PLUGIN_MONITOR_TOOLS.COMPONENT || MonitorUpsell,
-            )}
-          />
+          {PLUGIN_MONITOR_TOOLS.COMPONENT && (
+            <Route path="errors" element={<PLUGIN_MONITOR_TOOLS.COMPONENT />} />
+          )}
           <Route path="model-persistence-log" lazy={modelPersistenceLogPage}>
             {modalRoute(":jobId", ModelPersistenceLogJobModal)}
           </Route>
@@ -188,35 +147,25 @@ export function getMonitorRoutes() {
         {/* Admin-only, unlike the rest of Monitoring tools above — the page loads
             `GET /api/api-key`, superuser-only, so a non-admin with just the monitoring
             application permission would hit a 403. */}
-        <Route element={<CanAccessApiKeyUsage />}>
-          {PLUGIN_MONITOR.isApiKeyUsageEnabled ? (
+        {PLUGIN_MONITOR.isApiKeyUsageEnabled && (
+          <Route element={<CanAccessApiKeyUsage />}>
             <Route path="api-key-usage">
               {PLUGIN_MONITOR.getApiKeyUsageRoutes()}
             </Route>
-          ) : (
-            <Route path="api-key-usage">
-              <Route index lazy={apiKeyUsageUpsellPage} />
-              <Route path="*" lazy={apiKeyUsageUpsellPage} />
-            </Route>
-          )}
-        </Route>
+          </Route>
+        )}
 
         <Route element={<CanAccessAlertsManagement />}>
           <Route path="notifications">{getNotificationsRoutes()}</Route>
         </Route>
 
-        <Route element={<CanAccessSessionManagement />}>
-          {PLUGIN_MONITOR.isSessionManagementEnabled ? (
+        {PLUGIN_MONITOR.isSessionManagementEnabled && (
+          <Route element={<CanAccessSessionManagement />}>
             <Route path="sessions">
               {PLUGIN_MONITOR.getSessionManagementRoutes()}
             </Route>
-          ) : (
-            <Route path="sessions">
-              <Route index lazy={sessionManagementUpsellPage} />
-              <Route path="*" lazy={sessionManagementUpsellPage} />
-            </Route>
-          )}
-        </Route>
+          </Route>
+        )}
 
         <Route element={<CanAccessAiAuditing />}>
           {PLUGIN_AUDIT.isAiAuditingEnabled && (
@@ -232,12 +181,22 @@ export function getMonitorRoutes() {
   );
 }
 
-// Content diagnostics requires an additional feature token, so Tasks remains
-// the accessible fallback for users who lack dependency diagnostics access.
+// Lands on the first diagnostics section this instance provides and the user
+// can open, with Tasks as the fallback.
 function getMonitorIndexPath(state: State) {
-  return canAccessDependencyDiagnostics(state)
-    ? Urls.dependencyDiagnostics()
-    : Urls.monitorTasks();
+  if (
+    PLUGIN_MONITOR.isDependencyDiagnosticsEnabled &&
+    canAccessDependencyDiagnostics(state)
+  ) {
+    return Urls.dependencyDiagnostics();
+  }
+  if (
+    PLUGIN_MONITOR.isContentDiagnosticsEnabled &&
+    canAccessContentDiagnostics(state)
+  ) {
+    return Urls.contentDiagnostics();
+  }
+  return Urls.monitorTasks();
 }
 
 /**

@@ -14,7 +14,13 @@ import {
   AreaTab,
   AreaTabGroup,
 } from "metabase/nav/components/AreaLayout";
-import { PLUGIN_DATA_APPS, PLUGIN_REMOTE_SYNC } from "metabase/plugins";
+import {
+  PLUGIN_DATA_APPS,
+  PLUGIN_DEPENDENCIES,
+  PLUGIN_LIBRARY,
+  PLUGIN_REMOTE_SYNC,
+  PLUGIN_SCHEMA_VIEWER,
+} from "metabase/plugins";
 import { useSelector } from "metabase/redux";
 import { Outlet, useLocation } from "metabase/router";
 import { useSetting } from "metabase/settings";
@@ -50,16 +56,19 @@ export function DataStudioLayout() {
     PLUGIN_REMOTE_SYNC.useHasGlossaryDirtyChanges();
   const [isGitSettingsOpen, setIsGitSettingsOpen] = useState(false);
 
-  const hasLibraryFeature = useHasTokenFeature("library");
-  const hasDependenciesFeature = useHasTokenFeature("dependencies");
-  const hasSchemaViewerFeature = useHasTokenFeature("schema-viewer");
+  // A section is listed only when this instance provides it.
+  const hasLibrary = useHasTokenFeature("library") && PLUGIN_LIBRARY.isEnabled;
+  const hasDependencies =
+    useHasTokenFeature("dependencies") && PLUGIN_DEPENDENCIES.isEnabled;
+  const hasSchemaViewer =
+    useHasTokenFeature("schema-viewer") && PLUGIN_SCHEMA_VIEWER.isEnabled;
   const hasRemoteSyncFeature = useHasTokenFeature("remote_sync");
 
   const isTransformsSetupComplete = useSetting("transforms-setup-complete");
   const areTransformsEnabled = useSetting("transforms-enabled");
 
   const canUseTransforms = canAccessTransforms && areTransformsEnabled;
-  // if transform setup isn't complete, we still show transforms - that's where the upsell/enable pages are
+  // if transform setup isn't complete, we still show transforms - that's where the enable page is
   const shouldShowTransforms = canUseTransforms || !isTransformsSetupComplete;
 
   const settings = useDataStudioSettings();
@@ -103,27 +112,30 @@ export function DataStudioLayout() {
       </AreaTabGroup>
 
       <AreaTabGroup label={t`Library`} showLabel={isNavbarOpened}>
-        <AreaTab
-          label={t`Semantic layer`}
-          icon="repository"
-          to={Urls.dataStudioLibrary()}
-          isSelected={currentTab === "library"}
-          showLabel={isNavbarOpened}
-          isGated={!hasLibraryFeature}
-          rightSection={
-            hasDirtyChanges && PLUGIN_REMOTE_SYNC.CollectionSyncStatusBadge ? (
-              <PLUGIN_REMOTE_SYNC.CollectionSyncStatusBadge />
-            ) : null
-          }
-        />
-        <AreaTab
-          label={t`Dashboards`}
-          icon="dashboard"
-          to={Urls.dataStudioDashboards()}
-          isSelected={currentTab === "dashboards"}
-          showLabel={isNavbarOpened}
-          isGated={!hasLibraryFeature}
-        />
+        {hasLibrary && (
+          <AreaTab
+            label={t`Semantic layer`}
+            icon="repository"
+            to={Urls.dataStudioLibrary()}
+            isSelected={currentTab === "library"}
+            showLabel={isNavbarOpened}
+            rightSection={
+              hasDirtyChanges &&
+              PLUGIN_REMOTE_SYNC.CollectionSyncStatusBadge ? (
+                <PLUGIN_REMOTE_SYNC.CollectionSyncStatusBadge />
+              ) : null
+            }
+          />
+        )}
+        {hasLibrary && (
+          <AreaTab
+            label={t`Dashboards`}
+            icon="dashboard"
+            to={Urls.dataStudioDashboards()}
+            isSelected={currentTab === "dashboards"}
+            showLabel={isNavbarOpened}
+          />
+        )}
         <AreaTab
           label={t`SQL snippets`}
           icon="snippet"
@@ -177,30 +189,34 @@ export function DataStudioLayout() {
         />
       </AreaTabGroup>
 
-      <AreaTabGroup label={t`Tools`} showLabel={isNavbarOpened}>
-        <AreaTab
-          label={t`Schema viewer`}
-          icon="network"
-          to={Urls.dataStudioSchemaViewer()}
-          isSelected={currentTab === "schema-viewer"}
-          showLabel={isNavbarOpened}
-          isGated={!hasSchemaViewerFeature}
-        />
-        <AreaTab
-          label={t`Dependency graph`}
-          icon="dependencies"
-          to={Urls.dependencyGraph()}
-          isSelected={currentTab === "dependencies"}
-          showLabel={isNavbarOpened}
-          isGated={!hasDependenciesFeature}
-        />
-      </AreaTabGroup>
+      {(hasSchemaViewer || hasDependencies) && (
+        <AreaTabGroup label={t`Tools`} showLabel={isNavbarOpened}>
+          {hasSchemaViewer && (
+            <AreaTab
+              label={t`Schema viewer`}
+              icon="network"
+              to={Urls.dataStudioSchemaViewer()}
+              isSelected={currentTab === "schema-viewer"}
+              showLabel={isNavbarOpened}
+            />
+          )}
+          {hasDependencies && (
+            <AreaTab
+              label={t`Dependency graph`}
+              icon="dependencies"
+              to={Urls.dependencyGraph()}
+              isSelected={currentTab === "dependencies"}
+              showLabel={isNavbarOpened}
+            />
+          )}
+        </AreaTabGroup>
+      )}
     </>
   );
 
   const lowerNav = (
     <>
-      {hasRemoteSyncFeature ? (
+      {hasRemoteSyncFeature && (
         <>
           <PLUGIN_REMOTE_SYNC.GitSyncSetupMenuItem
             isNavbarOpened={isNavbarOpened}
@@ -211,15 +227,6 @@ export function DataStudioLayout() {
             onClose={() => setIsGitSettingsOpen(false)}
           />
         </>
-      ) : (
-        <AreaTab
-          label={t`Remote sync`}
-          icon="git_branch"
-          to={Urls.dataStudioGitSync()}
-          isSelected={currentTab === "git-sync"}
-          showLabel={isNavbarOpened}
-          isGated
-        />
       )}
       {settings.length > 0 && (
         <AreaTab

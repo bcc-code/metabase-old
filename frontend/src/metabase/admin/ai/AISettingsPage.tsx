@@ -4,7 +4,6 @@ import { jt, t } from "ttag";
 import { ExternalLink } from "metabase/common/components/ExternalLink";
 import { Link } from "metabase/common/components/Link";
 import { LoadingAndErrorWrapper } from "metabase/common/components/LoadingAndErrorWrapper";
-import { UpsellGem } from "metabase/common/components/upsells/components/UpsellGem";
 import { useDocsUrl } from "metabase/common/hooks";
 import { useListMetabotsQuery } from "metabase/metabot";
 import { FIXED_METABOT_ENTITY_IDS } from "metabase/metabot/constants";
@@ -22,7 +21,6 @@ import { Divider, Flex, Stack, Switch, Tabs } from "metabase/ui";
 
 import { AIModelSettingsSection } from "./AIModelSettingsSection";
 import { AIProviderSettingsSection } from "./AIProviderSettingsSection";
-import { EmbeddedMetabotUpsell } from "./EmbeddedMetabotUpsell";
 import { McpAppsSettings } from "./McpAppsSettings";
 import { MetabotSettingsPanel } from "./MetabotSettingsPanel";
 
@@ -160,47 +158,47 @@ function MetabotSettingsSection({
   selectedMetabotEntityId: MetabotTabEntityId;
 }) {
   const { data, isLoading, error } = useListMetabotsQuery();
-  const shouldShowUpsell =
-    !hasEmbedding &&
-    selectedMetabotEntityId === FIXED_METABOT_ENTITY_IDS.EMBEDDED;
-  const activeMetabot = !shouldShowUpsell
-    ? data?.items.find((m) => m.entity_id === selectedMetabotEntityId)
-    : null;
+  // Without embedding there is only the internal Metabot to configure.
+  const metabotEntityId = hasEmbedding
+    ? selectedMetabotEntityId
+    : FIXED_METABOT_ENTITY_IDS.DEFAULT;
+  const activeMetabot = data?.items.find(
+    (m) => m.entity_id === metabotEntityId,
+  );
 
   return (
     <SettingsSection id={id} title={t`Metabot settings`}>
-      <Tabs value={selectedMetabotEntityId}>
-        <Tabs.List>
-          <Tabs.Tab
-            renderRoot={(props) => (
-              <Link
-                {...props}
-                to={getMetabotTabPath(FIXED_METABOT_ENTITY_IDS.DEFAULT)}
-              />
-            )}
-            value={FIXED_METABOT_ENTITY_IDS.DEFAULT}
-          >
-            {t`Internal`}
-          </Tabs.Tab>
-          <Tabs.Tab
-            renderRoot={(props) => (
-              <Link
-                {...props}
-                to={getMetabotTabPath(FIXED_METABOT_ENTITY_IDS.EMBEDDED)}
-              />
-            )}
-            value={FIXED_METABOT_ENTITY_IDS.EMBEDDED}
-            rightSection={!hasEmbedding && <UpsellGem.New size={14} />}
-          >
-            {t`Embedded`}
-          </Tabs.Tab>
-        </Tabs.List>
-      </Tabs>
+      {hasEmbedding && (
+        <Tabs value={metabotEntityId}>
+          <Tabs.List>
+            <Tabs.Tab
+              renderRoot={(props) => (
+                <Link
+                  {...props}
+                  to={getMetabotTabPath(FIXED_METABOT_ENTITY_IDS.DEFAULT)}
+                />
+              )}
+              value={FIXED_METABOT_ENTITY_IDS.DEFAULT}
+            >
+              {t`Internal`}
+            </Tabs.Tab>
+            <Tabs.Tab
+              renderRoot={(props) => (
+                <Link
+                  {...props}
+                  to={getMetabotTabPath(FIXED_METABOT_ENTITY_IDS.EMBEDDED)}
+                />
+              )}
+              value={FIXED_METABOT_ENTITY_IDS.EMBEDDED}
+            >
+              {t`Embedded`}
+            </Tabs.Tab>
+          </Tabs.List>
+        </Tabs>
+      )}
 
       {activeMetabot ? (
         <MetabotSettingsPanel metabot={activeMetabot} />
-      ) : shouldShowUpsell ? (
-        <EmbeddedMetabotUpsell />
       ) : (
         <LoadingAndErrorWrapper
           loading={isLoading}

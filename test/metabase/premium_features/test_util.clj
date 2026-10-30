@@ -65,10 +65,10 @@
   [feature-name request]
   (is
    (partial=
-    {:cause   (str feature-name " is a paid feature not currently available to your instance. Please upgrade to use it. Learn more at metabase.com/upgrade/"),
+    {:cause   (str feature-name " is not available on this instance."),
      :data    {:status      "error-premium-feature-not-available",
                :status-code 402},
-     :message (str feature-name " is a paid feature not currently available to your instance. Please upgrade to use it. Learn more at metabase.com/upgrade/"),
+     :message (str feature-name " is not available on this instance."),
      :status  "error-premium-feature-not-available"}
     request)))
 

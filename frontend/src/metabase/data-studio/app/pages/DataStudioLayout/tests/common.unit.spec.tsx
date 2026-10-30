@@ -31,24 +31,31 @@ describe("DataStudioLayout", () => {
       setup({ remoteSyncBranch: "main" });
 
       const nav = await screen.findByTestId("data-studio-nav");
-      for (const label of [
-        "Semantic layer",
-        "Dashboards",
-        "SQL snippets",
-        "Data actions",
-        "Glossary",
-      ]) {
+      for (const label of ["SQL snippets", "Data actions", "Glossary"]) {
         expect(within(nav).getByText(label)).toBeInTheDocument();
       }
-      expect(
-        within(nav).getByRole("link", { name: /Dashboards/ }),
-      ).toHaveAttribute("href", "/data-studio/dashboards");
       expect(
         within(nav).getByRole("link", { name: /SQL snippets/ }),
       ).toHaveAttribute("href", "/data-studio/snippets");
       expect(
         within(nav).getByRole("link", { name: /Data actions/ }),
       ).toHaveAttribute("href", "/data-studio/actions");
+    });
+
+    it("should not list sections this instance does not provide", async () => {
+      setup({ remoteSyncBranch: "main" });
+
+      const nav = await screen.findByTestId("data-studio-nav");
+      for (const label of [
+        "Semantic layer",
+        "Dashboards",
+        "Schema viewer",
+        "Dependency graph",
+        "Remote sync",
+      ]) {
+        expect(within(nav).queryByText(label)).not.toBeInTheDocument();
+      }
+      expect(within(nav).queryByTestId("upsell-gem")).not.toBeInTheDocument();
     });
 
     it("should render content area", async () => {

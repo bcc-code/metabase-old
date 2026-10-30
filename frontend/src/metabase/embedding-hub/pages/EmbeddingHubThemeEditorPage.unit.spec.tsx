@@ -61,10 +61,13 @@ function setup({
 }
 
 describe("EmbeddingHubThemeEditorPage", () => {
-  it("redirects to Appearance without embedding_simple", async () => {
+  it("renders not found without embedding_simple", async () => {
     setup({ hasSimpleEmbedding: false });
 
-    expect(await screen.findByText("Appearance")).toBeInTheDocument();
+    expect(
+      await screen.findByText("We're a little lost..."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Edit theme")).not.toBeInTheDocument();
   });
 
   it("renders the editor when licensed", async () => {

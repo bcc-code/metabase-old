@@ -16,18 +16,15 @@ import { DateTime } from "metabase/common/components/DateTime";
 import { Link } from "metabase/common/components/Link";
 import { ListEmptyState } from "metabase/common/components/ListEmptyState";
 import { LoadingAndErrorWrapper } from "metabase/common/components/LoadingAndErrorWrapper";
-import { UpsellGem } from "metabase/common/components/upsells/components/UpsellGem";
 import { PageContainer } from "metabase/common/data-studio/components/PageContainer";
 import { useHasTokenFeature } from "metabase/common/hooks";
 import CS from "metabase/css/core/index.css";
 import { PLUGIN_REPLACEMENT, PLUGIN_TRANSFORMS_PYTHON } from "metabase/plugins";
-import { useSelector } from "metabase/redux";
 import { Outlet, useLocation } from "metabase/router";
 import { useSetting } from "metabase/settings";
 import { LockedTransformsBanner } from "metabase/transforms/components/LockedTransformsBanner/LockedTransformsBanner";
 import { TransformsHeader } from "metabase/transforms/components/TransformsHeader";
 import { useTransformPermissions } from "metabase/transforms/hooks/use-transform-permissions";
-import { getShouldShowPythonTransformsUpsell } from "metabase/transforms/selectors";
 import {
   Card,
   Ellipsified,
@@ -157,21 +154,13 @@ export const TransformListPage = () => {
   const isLoading =
     isLoadingCollections || isLoadingTransforms || isLoadingDatabases;
   const error = collectionsError ?? transformsError;
-  const shouldShowPythonTransformsUpsell = useSelector(
-    getShouldShowPythonTransformsUpsell,
-  );
-
   const warningsByTransformId = useGetTransformWarnings(transforms);
   const getNodeSyncColor = useGetNodeSyncColor();
 
   const treeData = useMemo(() => {
     const data = buildTreeData(collections, transforms);
 
-    // It will trigger the upsell modal if the feature isn't enabled.
-    const shouldShowPythonLibraryRow =
-      hasPythonTransformsFeature || shouldShowPythonTransformsUpsell;
-
-    if (shouldShowPythonLibraryRow) {
+    if (hasPythonTransformsFeature) {
       data.push({
         id: "library",
         name: t`Python library`,
@@ -187,7 +176,6 @@ export const TransformListPage = () => {
   }, [
     collections,
     hasPythonTransformsFeature,
-    shouldShowPythonTransformsUpsell,
     transforms,
     transformsDatabases.length,
   ]);
@@ -209,7 +197,6 @@ export const TransformListPage = () => {
         cell: ({ row }) =>
           getNameCell({
             row,
-            hasPythonTransformsFeature,
             warningsByTransformId,
             syncColor: getNodeSyncColor(row.original),
           }),
@@ -286,7 +273,7 @@ export const TransformListPage = () => {
           ) : null,
       },
     ];
-  }, [hasPythonTransformsFeature, warningsByTransformId, getNodeSyncColor]);
+  }, [warningsByTransformId, getNodeSyncColor]);
 
   const treeTableInstance = useTreeTableInstance({
     data: treeData,
@@ -379,12 +366,10 @@ export const TransformListPage = () => {
 
 function getNameCell({
   row,
-  hasPythonTransformsFeature,
   warningsByTransformId,
   syncColor,
 }: {
   row: Row<TreeNode>;
-  hasPythonTransformsFeature: boolean;
   warningsByTransformId: Map<number, string>;
   syncColor: ColorName | undefined;
 }) {
@@ -413,9 +398,6 @@ function getNameCell({
     return undefined;
   };
 
-  const isLibraryWithoutFeature =
-    row.original.nodeType === "library" && !hasPythonTransformsFeature;
-
   const hasWarning = !!getWarningMessage();
   const iconColor = hasWarning
     ? "feedback-warning"
@@ -431,7 +413,6 @@ function getNameCell({
         name={row.original.name}
         ellipsifiedProps={{ ...getTooltipProps(getWarningMessage()) }}
       />
-      {isLibraryWithoutFeature && <UpsellGem.New size={14} />}
     </Group>
   );
 }

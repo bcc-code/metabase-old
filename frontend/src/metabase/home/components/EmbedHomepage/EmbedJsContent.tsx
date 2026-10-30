@@ -27,11 +27,6 @@ export const EmbedJsContent = ({
         {t`Go to setup guide`}
       </Button>
     ))
-    .with({ variant: "ee", hasEmbeddingFeature: false }, () => (
-      <Button component={Link} to={"/admin/settings/license"}>
-        {t`Activate license`}
-      </Button>
-    ))
     .otherwise(() => null);
 
   return (

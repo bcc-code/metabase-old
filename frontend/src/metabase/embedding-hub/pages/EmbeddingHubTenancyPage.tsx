@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { t } from "ttag";
 
+import { NotFound } from "metabase/common/components/ErrorPages";
 import { ExternalLink } from "metabase/common/components/ExternalLink";
 import { usePermissionsBasePath } from "metabase/common/components/PermissionsBasePath/base-path";
 import { useDocsUrl, useHasTokenFeature } from "metabase/common/hooks";
@@ -9,7 +10,6 @@ import {
   setTenantsBasePath,
 } from "metabase/common/tenants";
 import { isUnder } from "metabase/embedding-hub/components/EmbeddingHubLayout";
-import { TenancyUpsellPage } from "metabase/embedding-hub/upsells";
 import { Outlet, useLocation, useNavigate } from "metabase/router";
 import { useAdminSetting, useSetting } from "metabase/settings";
 import { SettingsPageWrapper } from "metabase/settings-components";
@@ -52,7 +52,7 @@ export function EmbeddingHubTenancyPage() {
   useEffect(() => resetTenantsBasePath, []);
 
   if (!hasTenants) {
-    return <TenancyUpsellPage />;
+    return <NotFound />;
   }
 
   return (

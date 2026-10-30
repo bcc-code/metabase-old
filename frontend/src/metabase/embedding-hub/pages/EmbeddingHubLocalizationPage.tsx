@@ -1,8 +1,8 @@
 import { t } from "ttag";
 
+import { NotFound } from "metabase/common/components/ErrorPages";
 import { useHasTokenFeature } from "metabase/common/hooks";
 import { PLUGIN_CONTENT_TRANSLATION } from "metabase/content-translation/plugins";
-import { LocalizationUpsellPage } from "metabase/embedding-hub/upsells";
 import { SettingsPageWrapper } from "metabase/settings-components";
 
 /**
@@ -16,7 +16,7 @@ export function EmbeddingHubLocalizationPage() {
   const hasContentTranslation = useHasTokenFeature("content_translation");
 
   if (!hasContentTranslation) {
-    return <LocalizationUpsellPage />;
+    return <NotFound />;
   }
 
   return (

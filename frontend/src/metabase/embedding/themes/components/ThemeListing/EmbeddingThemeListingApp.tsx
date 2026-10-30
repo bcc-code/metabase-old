@@ -19,8 +19,8 @@ type EmbeddingThemeListingAppProps = {
 
 /**
  * The caller is responsible for gating this on the `embedding_simple` token
- * feature -- the embedding hub's Appearance page does, showing its own
- * upsell instead of mounting this component at all when the feature is off.
+ * feature -- the embedding hub's Appearance page does, and does not mount this
+ * component at all when the feature is off.
  */
 export function EmbeddingThemeListingApp({
   basePath,

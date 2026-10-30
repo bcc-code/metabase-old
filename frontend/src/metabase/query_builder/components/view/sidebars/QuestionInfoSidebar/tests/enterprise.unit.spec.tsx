@@ -1,5 +1,3 @@
-import userEvent from "@testing-library/user-event";
-
 import { screen } from "__support__/ui";
 import type { Card } from "metabase-types/api";
 import {
@@ -59,7 +57,7 @@ describe("QuestionInfoSidebar > enterprise", () => {
     });
 
     describe("for admins", () => {
-      it("should show tabs for Overview, History, Relationships, and Insights", async () => {
+      it("should show tabs for Overview, History and Relationships, with no Insights upsell", async () => {
         setup({
           user: { is_superuser: true },
           settings: createMockSettings({
@@ -69,19 +67,15 @@ describe("QuestionInfoSidebar > enterprise", () => {
           }),
         });
         const tabs = await screen.findAllByRole("tab");
-        expect(tabs).toHaveLength(4);
         expect(tabs.map((tab) => tab.textContent)).toEqual([
           "Overview",
           "History",
           "Relationships",
-          "Insights",
         ]);
-
-        const insightsTab = screen.getByText("Insights");
-        await userEvent.click(insightsTab);
+        expect(screen.queryByText("Insights")).not.toBeInTheDocument();
         expect(
-          await screen.findByText(/See who.s doing what, when/),
-        ).toBeInTheDocument();
+          screen.queryByText(/See who.s doing what, when/),
+        ).not.toBeInTheDocument();
       });
     });
   });

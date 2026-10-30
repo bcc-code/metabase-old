@@ -4,15 +4,12 @@ import { t } from "ttag";
 import _ from "underscore";
 
 import { AdminSettingsLayout } from "metabase/admin/components/AdminLayout/AdminSettingsLayout";
-import { UpsellBetterSupport } from "metabase/admin/upsells";
 import { useGetBugReportDetailsQuery } from "metabase/api/bug-report";
 import { CopyButton } from "metabase/common/components/CopyButton";
 import { ExternalLink } from "metabase/common/components/ExternalLink";
 import CS from "metabase/css/core/index.css";
 import { PLUGIN_SUPPORT } from "metabase/plugins";
-import { useSelector } from "metabase/redux";
 import { Outlet } from "metabase/router";
-import { getIsPaidPlan } from "metabase/selectors/settings";
 import { useSetting } from "metabase/settings";
 import {
   SettingsPageWrapper,
@@ -102,7 +99,6 @@ const InfoBlock = ({ children }: InfoBlockProps) => (
 
 export const Help = () => {
   const { tag } = useSetting("version");
-  const isPaidPlan = useSelector(getIsPaidPlan);
 
   const { data: bugReportDetails } = useGetBugReportDetailsQuery();
 
@@ -112,7 +108,6 @@ export const Help = () => {
   );
 
   const detailString = JSON.stringify(details, null, 2);
-  const compactDetailStringForUrl = encodeURIComponent(JSON.stringify(details));
 
   return (
     <AdminSettingsLayout maw="50rem">
@@ -121,11 +116,7 @@ export const Help = () => {
           <HelpLink
             title={t`Get help`}
             description={t`Resources and support`}
-            link={
-              isPaidPlan
-                ? `https://www.metabase.com/help-premium?utm_source=in-product&utm_medium=troubleshooting&utm_campaign=help&instance_version=${tag}&diag=${compactDetailStringForUrl}`
-                : `https://www.metabase.com/help?utm_source=in-product&utm_medium=troubleshooting&utm_campaign=help&instance_version=${tag}`
-            }
+            link={`https://www.metabase.com/help?utm_source=in-product&utm_medium=troubleshooting&utm_campaign=help&instance_version=${tag}`}
           />
           <HelpLink
             title={t`Report an issue`}
@@ -133,8 +124,6 @@ export const Help = () => {
             link={githubIssueLink(detailString)}
           />
         </Group>
-
-        <UpsellBetterSupport location="settings-troubleshooting" />
 
         {PLUGIN_SUPPORT.isEnabled && <PLUGIN_SUPPORT.SupportSettings />}
 

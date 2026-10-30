@@ -514,8 +514,27 @@ describe("Embed flow > forward and backward navigation", () => {
   });
 });
 
-describe("Embed flow > Pro feature upsell indicators", () => {
-  it("disables Pro checkboxes for OSS users (question)", async () => {
+describe("Embed flow > options that need modular embedding", () => {
+  it("offers only the experiences and authentication that work without modular embedding", async () => {
+    setup({ modularEmbeddingEnabled: false });
+
+    expect(
+      await screen.findByText("Select your embed experience"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("radio", { name: /Exploration/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("radio", { name: /Browser/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("sso")).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Guest" })).toBeInTheDocument();
+    expect(
+      screen.queryByText("Get more powerful embedding"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not show the behavior options to OSS users (question)", async () => {
     const mockDatabase = createMockDatabase();
     const mockCard = createMockCard({ id: 456 });
 
@@ -535,23 +554,21 @@ describe("Embed flow > Pro feature upsell indicators", () => {
       },
     });
 
-    // All Pro-gated checkboxes should be disabled
+    expect(await screen.findByText("Parameters")).toBeInTheDocument();
+    expect(screen.queryByText("Behavior")).not.toBeInTheDocument();
+    [
+      "Allow people to drill through on data points",
+      "Allow downloads",
+      "Allow people to save new questions",
+      "Allow alerts",
+      "Allow subscriptions",
+    ].forEach((name) => {
+      expect(screen.queryByRole("checkbox", { name })).not.toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("upsell-gem")).not.toBeInTheDocument();
     expect(
-      await screen.findByRole("checkbox", {
-        name: "Allow people to drill through on data points",
-      }),
-    ).toBeDisabled();
-    expect(
-      screen.getByRole("checkbox", { name: "Allow downloads" }),
-    ).toBeDisabled();
-    expect(
-      screen.getByRole("checkbox", {
-        name: "Allow people to save new questions",
-      }),
-    ).toBeDisabled();
-    expect(
-      screen.getByRole("checkbox", { name: "Allow alerts" }),
-    ).toBeDisabled();
+      screen.queryByText("Available on Metabase Pro plans"),
+    ).not.toBeInTheDocument();
   });
 
   it("enables Pro checkboxes for Pro users (question)", async () => {
@@ -599,7 +616,7 @@ describe("Embed flow > Pro feature upsell indicators", () => {
     PLUGIN_EMBEDDING_IFRAME_SDK_SETUP.isEnabled = () => false;
   });
 
-  it("disables Pro checkboxes for OSS users (dashboard)", () => {
+  it("does not show the behavior options to OSS users (dashboard)", async () => {
     setup({
       modularEmbeddingEnabled: false,
       initialState: {
@@ -608,17 +625,17 @@ describe("Embed flow > Pro feature upsell indicators", () => {
       },
     });
 
-    expect(
-      screen.getByRole("checkbox", {
-        name: "Allow people to drill through on data points",
-      }),
-    ).toBeDisabled();
-    expect(
-      screen.getByRole("checkbox", { name: "Allow downloads" }),
-    ).toBeDisabled();
-    expect(
-      screen.getByRole("checkbox", { name: "Allow subscriptions" }),
-    ).toBeDisabled();
+    expect(await screen.findByText("Parameters")).toBeInTheDocument();
+    expect(screen.queryByText("Behavior")).not.toBeInTheDocument();
+    [
+      "Allow people to drill through on data points",
+      "Allow downloads",
+      "Allow people to save new questions",
+      "Allow alerts",
+      "Allow subscriptions",
+    ].forEach((name) => {
+      expect(screen.queryByRole("checkbox", { name })).not.toBeInTheDocument();
+    });
   });
 
   it("enables Pro checkboxes for Pro users (dashboard)", async () => {

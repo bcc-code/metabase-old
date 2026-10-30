@@ -135,44 +135,45 @@ function isLocked(title: string) {
 }
 
 describe("EmbeddingHubGetStartedPage", () => {
-  describe("per-feature locking", () => {
-    it("locks every Fine-tune step when the instance licenses nothing", async () => {
+  describe("per-feature steps", () => {
+    it("leaves out every Fine-tune step when the instance has none of their features", async () => {
       setup();
 
-      expect(await screen.findByText(SSO_CARD)).toBeInTheDocument();
+      // AI needs no paid feature, so it is always there.
+      expect(await screen.findByText(AI_CARD)).toBeInTheDocument();
 
-      // AI is excluded on purpose: it needs no paid feature, so it never locks.
       [TENANTS_CARD, SSO_CARD, PRODUCTION_CARD, THEME_CARD].forEach((title) => {
-        expect(isLocked(title)).toBe(true);
+        expect(queryCard(title)).not.toBeInTheDocument();
       });
+      expect(
+        screen.queryByRole("heading", { name: "Fine-tune your embed" }),
+      ).not.toBeInTheDocument();
     });
 
     it("keys each step off its own feature, not one blanket check", async () => {
-      // Licensing a single feature is how the per-step gating is shown, not a
-      // shape to expect: Pro carries everything bar the cloud-only features.
       setup({ hasSsoJwt: true });
 
       expect(await screen.findByText(SSO_CARD)).toBeInTheDocument();
 
       expect(isLocked(SSO_CARD)).toBe(false);
-      expect(isLocked(TENANTS_CARD)).toBe(true);
-      expect(isLocked(THEME_CARD)).toBe(true);
+      expect(queryCard(TENANTS_CARD)).not.toBeInTheDocument();
+      expect(queryCard(THEME_CARD)).not.toBeInTheDocument();
     });
 
-    it("unlocks the tenants step on its own feature", async () => {
+    it("shows the tenants step on its own feature", async () => {
       setup({ hasTenants: true });
 
       expect(await screen.findByText(TENANTS_CARD)).toBeInTheDocument();
       expect(isLocked(TENANTS_CARD)).toBe(false);
-      expect(isLocked(SSO_CARD)).toBe(true);
+      expect(queryCard(SSO_CARD)).not.toBeInTheDocument();
     });
 
-    it("unlocks the theme step on embedding_simple", async () => {
+    it("shows the theme step on embedding_simple", async () => {
       setup({ hasSimpleEmbedding: true });
 
       expect(await screen.findByText(THEME_CARD)).toBeInTheDocument();
       expect(isLocked(THEME_CARD)).toBe(false);
-      expect(isLocked(SSO_CARD)).toBe(true);
+      expect(queryCard(SSO_CARD)).not.toBeInTheDocument();
     });
 
     it("opens a new theme and tags it to return here", async () => {
@@ -202,19 +203,11 @@ describe("EmbeddingHubGetStartedPage", () => {
       ).toBeInTheDocument();
     });
 
-    it("names no prerequisite when SSO is not licensed at all", async () => {
-      // Without the feature the step is locked anyway, so a prerequisite would
-      // name something that unlocks nothing.
+    it("leaves the step out when SSO is not available at all", async () => {
       setup({ hasSsoJwt: false });
 
-      expect(await screen.findByText(PRODUCTION_CARD)).toBeInTheDocument();
-      expect(isLocked(PRODUCTION_CARD)).toBe(true);
-
-      await userEvent.hover(getCard(PRODUCTION_CARD));
-
-      expect(
-        screen.queryByText("Set up SSO to unlock"),
-      ).not.toBeInTheDocument();
+      expect(await screen.findByText(AI_CARD)).toBeInTheDocument();
+      expect(queryCard(PRODUCTION_CARD)).not.toBeInTheDocument();
     });
 
     it("unlocks once SSO is both licensed and configured", async () => {
@@ -296,14 +289,12 @@ describe("EmbeddingHubGetStartedPage", () => {
     });
   });
 
-  describe("the paywall banner", () => {
-    it("replaces the Fine-tune subtitle rather than stacking with it", async () => {
-      setup({ hasSimpleEmbedding: false });
+  describe("the Fine-tune subtitle", () => {
+    it("shows no subtitle or upgrade banner without modular embedding", async () => {
+      setup({ hasSimpleEmbedding: false, hasSsoJwt: true });
 
       expect(
-        await screen.findByText(
-          "Upgrade to Metabase Pro to configure advanced options.",
-        ),
+        await screen.findByRole("heading", { name: "Fine-tune your embed" }),
       ).toBeInTheDocument();
 
       expect(
@@ -311,9 +302,14 @@ describe("EmbeddingHubGetStartedPage", () => {
           "If you have a more sophisticated setup in mind, with many users and tenants, then keep going.",
         ),
       ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(
+          "Upgrade to Metabase Pro to configure advanced options.",
+        ),
+      ).not.toBeInTheDocument();
     });
 
-    it("shows the subtitle and no banner above the paywall", async () => {
+    it("shows the subtitle and no banner with modular embedding", async () => {
       setup({ hasSimpleEmbedding: true });
 
       expect(

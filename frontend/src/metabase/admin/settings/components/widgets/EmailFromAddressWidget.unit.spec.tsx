@@ -92,13 +92,12 @@ describe("EmailFromAddressWidgets", () => {
     const input = await screen.findByDisplayValue("env@metabase.com");
     expect(input).toBeDisabled();
     expect(
-      screen.getByText(
-        "Please set up a custom SMTP server to change this (Pro only)",
-      ),
+      screen.getByText("Please set up a custom SMTP server to change this"),
     ).toBeInTheDocument();
+    expect(screen.queryByText(/Pro only/)).not.toBeInTheDocument();
     expect(
-      screen.getByText("Whitelabel email notifications"),
-    ).toBeInTheDocument();
+      screen.queryByText("Whitelabel email notifications"),
+    ).not.toBeInTheDocument();
   });
 
   it("should be disabled for cloud users with feature flag who haven't configured smtp", async () => {

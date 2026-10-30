@@ -5,6 +5,7 @@ import { setupUserKeyValueEndpoints } from "__support__/server-mocks";
 import { createMockState } from "__support__/state";
 import { act, renderWithProviders, screen } from "__support__/ui";
 import { delay } from "__support__/utils";
+import { PLUGIN_LIBRARY, reinitialize } from "metabase/plugins";
 import { Route } from "metabase/router";
 import { defer } from "metabase/utils/promise";
 import { createMockUser } from "metabase-types/api/mocks";
@@ -22,7 +23,7 @@ describe("data-studio routes", () => {
 
     // Includes the transform, data model, glossary, settings, snippet, action
     // and dashboard routes, which this tree nests.
-    expect(loaders).toHaveLength(53);
+    expect(loaders).toHaveLength(49);
 
     for (const load of loaders) {
       expect((await load()).Component).toBeDefined();
@@ -63,6 +64,7 @@ function setupIndexRedirect({
         <Route path="guide" element={<div data-testid="guide-page" />} />
         <Route path="data" element={<div data-testid="data-index" />} />
         <Route path="library" element={<div data-testid="library-index" />} />
+        <Route path="snippets" element={<div data-testid="snippets-index" />} />
         {transformsLoading ? (
           <Route
             path="transforms"
@@ -92,6 +94,10 @@ function setupIndexRedirect({
 }
 
 describe("Data Studio index redirect", () => {
+  afterEach(() => {
+    reinitialize();
+  });
+
   it("sends first-time visitors to the guide without recording the visit itself", async () => {
     setupIndexRedirect({ hasSeenGuide: false, isAdmin: true });
 
@@ -106,11 +112,19 @@ describe("Data Studio index redirect", () => {
     expect(screen.queryByTestId("guide-page")).not.toBeInTheDocument();
   });
 
-  it("sends returning non-admins to their computed index", async () => {
+  it("sends returning non-admins to the library when it is available", async () => {
+    PLUGIN_LIBRARY.isEnabled = true;
     setupIndexRedirect({ hasSeenGuide: true });
 
     expect(await screen.findByTestId("library-index")).toBeInTheDocument();
     expect(screen.queryByTestId("guide-page")).not.toBeInTheDocument();
+  });
+
+  it("sends returning non-admins to snippets when the library is not available", async () => {
+    setupIndexRedirect({ hasSeenGuide: true });
+
+    expect(await screen.findByTestId("snippets-index")).toBeInTheDocument();
+    expect(screen.queryByTestId("library-index")).not.toBeInTheDocument();
   });
 
   it("lets a navigation the user already started finish", async () => {

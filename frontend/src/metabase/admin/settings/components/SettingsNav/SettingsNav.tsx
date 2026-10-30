@@ -1,11 +1,10 @@
 import { t } from "ttag";
 
 import { AdminNavWrapper } from "metabase/admin/components/AdminNav";
-import { UpsellGem } from "metabase/common/components/upsells/components/UpsellGem";
 import { useHasTokenFeature } from "metabase/common/hooks";
 import { PLUGIN_REMOTE_SYNC, PLUGIN_SECURITY_CENTER } from "metabase/plugins";
-import { getPlan, isProPlan, useSetting } from "metabase/settings";
-import { Box, Divider, Flex } from "metabase/ui";
+import { useSetting } from "metabase/settings";
+import { Box, Divider } from "metabase/ui";
 
 import { CustomVisualizationsNav } from "./CustomVisualizationsNav";
 import { SettingsNavItem } from "./SettingsNavItem";
@@ -22,8 +21,6 @@ export function SettingsNav() {
   const hasScim = useHasTokenFeature("scim");
   const hasPythonTransforms = useHasTokenFeature("transforms-python");
   const isHosted = useSetting("is-hosted?");
-  const tokenFeatures = useSetting("token-features");
-  const isPro = isProPlan(getPlan(tokenFeatures));
   const { isEnabled: isSecurityCenterEnabled, SecurityCenterPromoCard } =
     PLUGIN_SECURITY_CENTER;
 
@@ -50,20 +47,7 @@ export function SettingsNav() {
         {hasOidc && <SettingsNavItem path="authentication/oidc" label="OIDC" />}
       </SettingsNavItem>
       <SettingsNavItem path="domains" label={t`Domains`} icon="globe" />
-      {PLUGIN_REMOTE_SYNC.isEnabled ? (
-        <PLUGIN_REMOTE_SYNC.LibraryNav />
-      ) : !isPro ? (
-        <SettingsNavItem
-          path="remote-sync"
-          label={
-            <Flex gap="sm" align="center">
-              <span>{t`Remote sync`}</span>
-              <UpsellGem />
-            </Flex>
-          }
-          icon="sync"
-        />
-      ) : null}
+      {PLUGIN_REMOTE_SYNC.isEnabled && <PLUGIN_REMOTE_SYNC.LibraryNav />}
       <NavDivider />
       <SettingsNavItem path="email" label={t`Email`} icon="mail" />
       <SettingsNavItem path="slack" label={t`Slack`} icon="slack" />
@@ -77,31 +61,27 @@ export function SettingsNav() {
       />
       <CustomVisualizationsNav />
       <SettingsNavItem path="maps" label={t`Maps`} icon="map" />
-      <SettingsNavItem
-        path={!hasWhitelabel ? "whitelabel" : undefined}
-        folderPattern="whitelabel"
-        label={
-          <Flex gap="sm" align="center">
-            <span>{t`Appearance`}</span>
-            {!hasWhitelabel && <UpsellGem />}
-          </Flex>
-        }
-        icon="palette"
-      >
-        {hasWhitelabel && [
-          // using an array so that child path detection can access them as direct children
-          <SettingsNavItem
-            key="branding"
-            path="whitelabel/branding"
-            label={t`Branding`}
-          />,
-          <SettingsNavItem
-            key="conceal"
-            path="whitelabel/conceal-metabase"
-            label={t`Conceal Metabase`}
-          />,
-        ]}
-      </SettingsNavItem>
+      {hasWhitelabel && (
+        <SettingsNavItem
+          folderPattern="whitelabel"
+          label={t`Appearance`}
+          icon="palette"
+        >
+          {[
+            // using an array so that child path detection can access them as direct children
+            <SettingsNavItem
+              key="branding"
+              path="whitelabel/branding"
+              label={t`Branding`}
+            />,
+            <SettingsNavItem
+              key="conceal"
+              path="whitelabel/conceal-metabase"
+              label={t`Conceal Metabase`}
+            />,
+          ]}
+        </SettingsNavItem>
+      )}
       <NavDivider />
       <SettingsNavItem path="uploads" label={t`Uploads`} icon="upload" />
       {/* Python Runner settings are managed by Metabase Cloud for hosted instances */}
@@ -116,18 +96,6 @@ export function SettingsNav() {
         path="public-sharing"
         label={t`Public sharing`}
         icon="share"
-      />
-      <NavDivider />
-      <SettingsNavItem path="license" label={t`License`} icon="store" />
-      <SettingsNavItem
-        path="cloud"
-        label={
-          <Flex gap="sm" align="center">
-            <span>{t`Cloud`}</span>
-            {!hasHosting && <UpsellGem />}
-          </Flex>
-        }
-        icon="cloud"
       />
       {isSecurityCenterEnabled && (
         <Box

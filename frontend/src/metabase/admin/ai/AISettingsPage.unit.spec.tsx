@@ -243,6 +243,27 @@ describe("AISettingsPage", () => {
     },
   );
 
+  it("only offers the internal Metabot when embedding is unavailable", async () => {
+    await setup({
+      enableEmbedding: false,
+      initialRoute: `/admin/metabot?metabot_id=${FIXED_METABOT_ENTITY_IDS.EMBEDDED}`,
+      metabots: buildDefaultMetabots({
+        default: { id: 41 },
+        embedded: { id: 42 },
+      }),
+    });
+
+    expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+    expect(await screen.findByText("Enable Metabot")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Enable Embedded Metabot"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Embed AI chat in your product"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("upsell-gem")).not.toBeInTheDocument();
+  });
+
   it("reflects the persisted use_verified_content state from the API", async () => {
     await setup({
       contentVerification: true,
