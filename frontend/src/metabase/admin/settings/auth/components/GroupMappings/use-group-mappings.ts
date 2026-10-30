@@ -14,7 +14,9 @@ import { EMPTY_MAPPINGS } from "./utils";
 
 export type GroupMappingsSettingKey =
   | "ldap-group-mappings"
-  | "saml-group-mappings";
+  | "saml-group-mappings"
+  | "jwt-group-mappings"
+  | "oidc-group-mappings";
 
 export type GroupMappingsSaveResult =
   | { ok: true }

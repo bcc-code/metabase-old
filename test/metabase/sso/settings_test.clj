@@ -78,3 +78,111 @@
     (mt/with-temp-env-var-value! [mb-oidc-allowed-networks "external-only"]
       (is (= :external-only
              (startup/def-startup-validation! ::sso.settings/oidc-allowed-networks))))))
+
+;;; ------------------------------------------------ JWT and OpenID Connect ------------------------------------------------
+
+(deftest oidc-issuer-uri-test
+  (mt/with-temporary-setting-values [oidc-issuer-uri nil]
+    (testing "the discovery document URL is trimmed to the issuer; a trailing slash on the issuer is kept"
+      (sso.settings/oidc-issuer-uri! " https://login.example.com/.well-known/openid-configuration ")
+      (is (= "https://login.example.com" (sso.settings/oidc-issuer-uri)))
+      (sso.settings/oidc-issuer-uri! "https://login.example.com/")
+      (is (= "https://login.example.com/" (sso.settings/oidc-issuer-uri))))
+    (testing "only absolute http(s) URLs"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"must be an absolute URL"
+                            (sso.settings/oidc-issuer-uri! "login.example.com")))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"must be an absolute URL"
+                            (sso.settings/oidc-issuer-uri! "ftp://login.example.com"))))))
+
+(deftest oidc-scopes-test
+  (mt/with-temporary-setting-values [oidc-scopes nil]
+    (is (= ["openid" "email" "profile"] (sso.settings/oidc-scope-list)))
+    (sso.settings/oidc-scopes! "email, profile  offline_access email")
+    (is (= "email profile offline_access" (sso.settings/oidc-scopes)))
+    (testing "openid is always requested, first"
+      (is (= ["openid" "email" "profile" "offline_access"] (sso.settings/oidc-scope-list))))))
+
+(deftest oidc-authorization-params-test
+  (is (= {"audience" "https://api.example.com", "prompt" "login"}
+         (sso.settings/parse-oidc-authorization-params "audience=https://api.example.com&prompt=login")))
+  (is (= {"audience" "https://api.example.com", "connection" "bcc id"}
+         (sso.settings/parse-oidc-authorization-params "audience=https%3A%2F%2Fapi.example.com\nconnection = bcc%20id\n")))
+  (is (= {} (sso.settings/parse-oidc-authorization-params nil)))
+  (is (thrown-with-msg? clojure.lang.ExceptionInfo #"must look like name=value"
+                        (sso.settings/parse-oidc-authorization-params "audience")))
+  (is (thrown-with-msg? clojure.lang.ExceptionInfo #"set by Metabase"
+                        (sso.settings/parse-oidc-authorization-params "redirect_uri=https://evil.example.com"))))
+
+(deftest sso-enabled-requires-configuration-test
+  (mt/with-temporary-setting-values [oidc-enabled false
+                                     oidc-issuer-uri nil
+                                     oidc-client-id nil
+                                     oidc-client-secret nil
+                                     jwt-enabled false
+                                     jwt-identity-provider-uri nil
+                                     jwt-shared-secret nil]
+    (testing "neither can be enabled before it is configured"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"not configured" (sso.settings/oidc-enabled! true)))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"not configured" (sso.settings/jwt-enabled! true))))
+    (mt/with-temporary-setting-values [oidc-issuer-uri    "https://login.example.com/"
+                                       oidc-client-id     "client"
+                                       oidc-client-secret "secret"]
+      (sso.settings/oidc-enabled! true)
+      (is (sso.settings/oidc-enabled))
+      (is (sso.settings/sso-enabled?))
+      (is (sso.settings/sso-source-enabled? :oidc))
+      (testing "clearing a required setting turns sign-in off"
+        (sso.settings/oidc-client-secret! nil)
+        (is (not (sso.settings/oidc-enabled)))))
+    (mt/with-temporary-setting-values [jwt-identity-provider-uri "https://idp.example.com/login"
+                                       jwt-shared-secret         "0123456789abcdef0123456789abcdef"]
+      (sso.settings/jwt-enabled! true)
+      (is (sso.settings/jwt-enabled))
+      (is (sso.settings/sso-source-enabled? :jwt)))))
+
+(deftest group-mappings-test
+  (mt/with-temporary-setting-values [oidc-group-mappings nil]
+    (testing "keys that arrive as keywords from a JSON request body are stored as the provider's group names"
+      (sso.settings/oidc-group-mappings! {(keyword "https://example.com/roles/admin") [2 2], :analysts [3]})
+      (is (= {"https://example.com/roles/admin" [2], "analysts" [3]} (sso.settings/oidc-group-mappings))))
+    (testing "JSON is accepted"
+      (sso.settings/oidc-group-mappings! "{\"Data Team\": [4, 5]}")
+      (is (= {"Data Team" [4 5]} (sso.settings/oidc-group-mappings))))
+    (testing "values must be lists of group IDs"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"must be a list of group IDs"
+                            (sso.settings/oidc-group-mappings! {"x" ["Administrators"]}))))
+    (testing "the API writes them too"
+      (mt/user-http-request :crowberto :put 204 "setting/oidc-group-mappings" {:value {"Engineering" [3]}})
+      (is (= {"Engineering" [3]} (sso.settings/oidc-group-mappings))))))
+
+(deftest oidc-email-domain-allowed-test
+  (mt/with-temporary-setting-values [oidc-allowed-email-domains nil]
+    (is (sso.settings/oidc-email-domain-allowed? "anyone@anywhere.example"))
+    (sso.settings/oidc-allowed-email-domains! "Example.com, @example.org")
+    (is (= "example.com,example.org" (sso.settings/oidc-allowed-email-domains)))
+    (is (sso.settings/oidc-email-domain-allowed? "ada@example.com"))
+    (is (sso.settings/oidc-email-domain-allowed? "ada@EXAMPLE.org"))
+    (is (not (sso.settings/oidc-email-domain-allowed? "ada@sub.example.com")))
+    (is (not (sso.settings/oidc-email-domain-allowed? "ada@example.com.evil.example")))))
+
+(deftest send-new-sso-user-admin-email-test
+  (testing "with SSO provided by this build, admins can turn the new-user email off; it is on by default"
+    (mt/with-temporary-setting-values [send-new-sso-user-admin-email? nil]
+      (is (true? (sso.settings/send-new-sso-user-admin-email?)))
+      (sso.settings/send-new-sso-user-admin-email?! false)
+      (is (false? (sso.settings/send-new-sso-user-admin-email?))))))
+
+(deftest password-login-can-be-disabled-with-sso-test
+  (testing "with an SSO method enabled, password login can be turned off"
+    (mt/with-temporary-setting-values [jwt-identity-provider-uri "https://idp.example.com/login"
+                                       jwt-shared-secret         "0123456789abcdef0123456789abcdef"
+                                       jwt-enabled               true
+                                       enable-password-login     false]
+      (is (false? (setting/get :enable-password-login)))))
+  (testing "without any SSO method, password login stays on"
+    (mt/with-temporary-setting-values [jwt-enabled           false
+                                       oidc-enabled          false
+                                       google-auth-enabled   false
+                                       ldap-enabled          false
+                                       enable-password-login false]
+      (is (true? (setting/get :enable-password-login))))))

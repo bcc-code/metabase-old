@@ -123,14 +123,15 @@
    - :provider   - Provider identifier keyword or string (e.g., :slack-connect)
 
    Optional:
-   - :ttl-ms     - Time-to-live in milliseconds (default: 600000 = 10 min)
-   - :browser-id - Browser identifier for request forgery protection
+   - :ttl-ms        - Time-to-live in milliseconds (default: 600000 = 10 min)
+   - :browser-id    - Browser identifier for request forgery protection
+   - :code-verifier - PKCE (RFC 7636) code verifier to send with the token request on callback
 
    Returns a map suitable for encryption.
 
    Throws an exception if the redirect URL is invalid (not relative or not same-origin).
    This prevents open redirect attacks."
-  [{:keys [state nonce redirect provider ttl-ms browser-id]
+  [{:keys [state nonce redirect provider ttl-ms browser-id code-verifier]
     :or   {ttl-ms default-ttl-ms}}]
   {:pre [(some? state) (some? nonce) (some? redirect) (some? provider)]}
   ;; Validate redirect URL to prevent open redirect attacks
@@ -142,7 +143,8 @@
              :provider   (name provider)
              :created-at now
              :expires-at (+ now ttl-ms)}
-      browser-id (assoc :browser-id browser-id))))
+      browser-id    (assoc :browser-id browser-id)
+      code-verifier (assoc :code-verifier code-verifier))))
 
 ;;; -------------------------------------------------- Encryption --------------------------------------------------
 
@@ -239,7 +241,7 @@
    Parameters:
    - response    - Ring response map
    - request     - Ring request (for determining secure/https)
-   - state-data  - Map with :state, :nonce, :redirect, :provider keys
+   - state-data  - Map with :state, :nonce, :redirect, :provider keys, and optionally :code-verifier
    - options     - Optional map with :ttl-ms (default 600000), :browser-id
 
    Returns updated response with cookie set."

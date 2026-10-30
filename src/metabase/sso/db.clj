@@ -59,3 +59,12 @@
    provider :- :string
    metadata :- [:maybe ::auth-identity.schema/auth-identity.metadata]]
   (t2/update! :model/AuthIdentity {:user_id user-id, :provider provider} {:metadata metadata}))
+
+(mu/defn user-id-for-auth-identity :- [:maybe ::lib.schema.id/user]
+  "The id of the User whose AuthIdentity at `provider` has the `provider-id` (e.g. the `sub` an identity provider
+  identifies them by), or nil."
+  [provider    :- :string
+   provider-id :- :string]
+  (t2/select-one-fn :user_id :model/AuthIdentity
+                    :provider    [:auto/param provider]
+                    :provider_id [:auto/param provider-id]))
