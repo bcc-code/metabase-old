@@ -478,14 +478,16 @@
       (collection/check-collection-namespace :model/Card (:collection_id card)))))
 
 (defenterprise pre-update-check-sandbox-constraints
-  "Checks additional sandboxing constraints for Metabase Enterprise Edition. The OSS implementation is a no-op."
+  "Throws when the update would break a row and column security policy (sandbox) that uses this question."
   metabase-enterprise.sandbox.models.sandbox
-  [_ _])
+  [card changes]
+  ((requiring-resolve 'metabase.data-access.core/pre-update-check-sandbox-constraints) card changes))
 
 (defenterprise pre-delete-check-sandbox-constraints
-  "Checks additional sandboxing constraints for Metabase Enterprise Edition. The OSS implementation is a no-op."
+  "Throws when a row and column security policy (sandbox) uses this question."
   metabase-enterprise.sandbox.models.sandbox
-  [_])
+  [card]
+  ((requiring-resolve 'metabase.data-access.core/pre-delete-check-sandbox-constraints) card))
 
 (defn- value-field-gone?
   [metadata-columns value-field]

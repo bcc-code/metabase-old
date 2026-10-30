@@ -25,9 +25,12 @@
   nil)
 
 (defenterprise check-block-permissions
-  "OSS implementation always returns `nil` because block permissions are an EE-only feature."
+  "Throws a 403 when the current user is blocked from a table the (preprocessed, legacy) `query` reads, or when it has
+  a native query and they are blocked from some of its database or sandboxed on it -- whatever their access to the
+  saved questions it uses. Returns `nil` otherwise."
   metabase-enterprise.advanced-permissions.models.permissions.block-permissions
-  [_query])
+  [query]
+  ((requiring-resolve 'metabase.data-access.core/check-block-permissions) query))
 
 (defn- throw-inactive-table-error
   [{db-id :id db-name :name} {table-id :id table-name :name schema :schema}]

@@ -314,7 +314,7 @@
 ;;; +----------------------------------------------------------------------------------------------------------------+
 
 (defenterprise sandboxed-user?
-  "Returns a boolean if the current user uses sandboxing for any database. In OSS this is always false. Will throw an
+  "Returns a boolean if the current user uses sandboxing (row and column security) for any database. Will throw an
   error if [[api/*current-user-id*]] is not bound."
   metabase-enterprise.sandbox.api.util
   []
@@ -323,13 +323,11 @@
     ;; returning `false` for users who should actually be sandboxes.
     (throw (ex-info (str (tru "No current user found"))
                     {:status-code 403})))
-  ;; oss doesn't have sandboxing. But we throw if no current-user-id so the behavior doesn't change when ee version
-  ;; becomes available
-  false)
+  ((requiring-resolve 'metabase.data-access.core/sandboxed-user?)))
 
 (defenterprise impersonated-user?
-  "Returns a boolean if the current user uses connection impersonation for any database. In OSS this is always false.
-  Will throw an error if [[api/*current-user-id*]] is not bound."
+  "Returns a boolean if the current user uses connection impersonation for any database. Will throw an error if
+  [[api/*current-user-id*]] is not bound."
   metabase-enterprise.impersonation.util
   []
   (when-not api/*current-user-id*
@@ -337,33 +335,29 @@
     ;; returning `false` for users who should actually be using impersonations.
     (throw (ex-info (str (tru "No current user found"))
                     {:status-code 403})))
-  ;; oss doesn't have connection impersonation. But we throw if no current-user-id so the behavior doesn't change when
-  ;; ee version becomes available
-  false)
+  ((requiring-resolve 'metabase.data-access.core/impersonated-user?)))
 
 (defenterprise impersonation-enforced-for-db?
-  "Returns a boolean if the current user has an enforced connection impersonation policy for a provided database. In OSS
-  this is always false. Will throw an error if [[api/*current-user-id*]] is not bound."
+  "Returns a boolean if the current user has an enforced connection impersonation policy for a provided database. Will
+  throw an error if [[api/*current-user-id*]] is not bound."
   metabase-enterprise.impersonation.util
-  [_db-or-id]
+  [db-or-id]
   (when-not api/*current-user-id*
     ;; If no *current-user-id* is bound we can't check for impersonations, so we should throw in this case to avoid
     ;; returning `false` for users who should actually be using impersonations.
     (throw (ex-info (str (tru "No current user found"))
                     {:status-code 403})))
-  ;; oss doesn't have connection impersonation. But we throw if no current-user-id so the behavior doesn't change when
-  ;; ee version becomes available
-  false)
+  ((requiring-resolve 'metabase.data-access.core/impersonation-enforced-for-db?) db-or-id))
 
 (defenterprise sandboxed-user-for-db?
-  "Returns a boolean if the current user has any enforced sandbox for the given database. In OSS this is always false.
-  Will throw an error if [[api/*current-user-id*]] is not bound."
+  "Returns a boolean if the current user has any enforced sandbox for the given database. Will throw an error if
+  [[api/*current-user-id*]] is not bound."
   metabase-enterprise.sandbox.api.util
-  [_db-or-id]
+  [db-or-id]
   (when-not api/*current-user-id*
     (throw (ex-info (str (tru "No current user found"))
                     {:status-code 403})))
-  false)
+  ((requiring-resolve 'metabase.data-access.core/sandboxed-user-for-db?) db-or-id))
 
 (defenterprise routed-user?
   "Returns a boolean if the current user is routed to a destination database for any router database they can view

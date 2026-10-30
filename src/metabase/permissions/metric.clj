@@ -4,7 +4,7 @@
    users filtered by:
    1. Field visibility_type (hidden/sensitive excluded)
    2. Table-level view-data permissions
-   3. Column-level sandbox restrictions (EE, via defenterprise)"
+   3. Column-level sandbox restrictions (row and column security)"
   (:require
    [metabase.api.common :as api]
    [metabase.lib.metadata :as lib.metadata]
@@ -50,12 +50,10 @@
 
 (defenterprise sandbox-restricted-fields
   "For sandboxed tables, returns {table-id -> #{allowed-field-ids}}.
-   Tables not in the returned map have no column restriction. nil means no sandboxes apply.
-   OSS stub returns nil (fail open — :model/Sandbox not available in OSS).
-   EE override uses :feature :none to fail closed when MetaStore is down."
+   Tables not in the returned map have no column restriction. nil means no sandboxes apply."
   metabase-enterprise.sandbox.api.metric
-  [_table-ids]
-  nil)
+  [table-ids]
+  ((requiring-resolve 'metabase.data-access.core/sandbox-restricted-fields) table-ids))
 
 ;;; ------------------------------------------------- Core Filter -------------------------------------------------
 
