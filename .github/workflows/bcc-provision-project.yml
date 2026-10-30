@@ -1,6 +1,6 @@
 # Creates (or updates) the Metabase landing zone on the BCC Infra Platform: a Google Cloud project per environment,
 # the team's access to it, and the GitHub environment variables the other BCC workflows use.
-# See infra/README.md and https://developer.bcc.no/bcc-platform/creating_projects.html
+# See bcc-docs/hosting.md and https://developer.bcc.no/bcc-platform/creating_projects.html
 name: BCC - Provision Project
 run-name: Provision Project - ${{ inputs.environment }} - ${{ inputs.action }}
 

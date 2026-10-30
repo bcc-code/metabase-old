@@ -6,7 +6,7 @@
 (set! *warn-on-reflection* true)
 
 (def ^:private codespell-dirs
-  "Keep these in sync with the list of directories in `.github/workflows/codespell.yml`."
+  "The directories `./bin/mage codespell` checks."
   ["docs"
    #_"e2e"
    "enterprise"

@@ -1,5 +1,5 @@
 # Plans or applies the Terraform in infra/ through the BCC Infra Platform.
-# See infra/README.md and https://developer.bcc.no/bcc-platform/creating_projects.html
+# See bcc-docs/hosting.md and https://developer.bcc.no/bcc-platform/creating_projects.html
 name: BCC - Deploy Terraform
 run-name: Deploy Terraform - ${{ inputs.environment }} - ${{ inputs.action }}
 

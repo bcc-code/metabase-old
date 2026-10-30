@@ -1,5 +1,5 @@
 # Builds the BCC Metabase image, pushes it to the environment's Artifact Registry and rolls it out on Cloud Run.
-# See infra/README.md.
+# See bcc-docs/hosting.md.
 name: BCC - Build and deploy Metabase
 run-name: Build and deploy Metabase ${{ inputs.version }} - ${{ inputs.environment }}
 
