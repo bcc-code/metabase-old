@@ -59,9 +59,24 @@ The repository only keeps BCC's own workflows:
 | `bcc-infra-deploy.yml` | Plans or applies the Terraform in `infra/`. |
 | `bcc-app-deploy.yml` | Builds the image and rolls it out on Cloud Run. |
 | `bcc-docs.yml` | Publishes this documentation to developer.bcc.no. |
+| `bcc-ci.yml` | Checks pull requests and pushes to `master` (see below). |
 
-Upstream Metabase's own CI workflows were removed: they depend on Metabase's runners and secrets. Nothing runs the
-tests automatically, so run the checks above for the parts you change.
+Upstream Metabase's own CI workflows were removed: they depend on Metabase's runners and secrets.
+
+### CI
+
+**BCC - CI** checks only what a change touches, on the open-source edition. A pull request is compared with its base
+branch, a push to `master` with the commit before it.
+
+- **Frontend**, when JavaScript, TypeScript, CSS or ClojureScript changed: builds the ClojureScript, type-checks
+  everything, lints and format-checks the changed files, and runs the Jest unit tests in their folders.
+- **Backend**, when Clojure changed: runs clj-kondo and cljfmt on the changed files, the module-boundary checks, and
+  the tests of each changed module (a change in `src/metabase/cache/` runs `test/metabase/cache/`). Driver tests
+  are not run.
+
+`.github/scripts/bcc-ci-changes.sh` decides what is checked; run it locally to see what CI will pick for your last
+commit. It is not a full test run: the tests of other modules that use a changed module are not run, so run the
+wider tests yourself when you change something many modules use, and after an upstream merge.
 
 ## Updating from upstream Metabase
 
