@@ -528,10 +528,8 @@
 
   cache.refresh
   {:team "BCC"
-   :api  #{metabase.cache.refresh.api
-           metabase.cache.refresh.init}
-   :uses #{api
-           app-db
+   :api  #{metabase.cache.refresh.init}
+   :uses #{app-db
            cache
            data-access
            lib
@@ -539,7 +537,6 @@
            premium-features
            query-processor
            request
-           settings
            task
            util}
    :model-imports #{:model/CacheConfig

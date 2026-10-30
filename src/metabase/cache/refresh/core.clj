@@ -12,11 +12,9 @@
   connection impersonation are left out: their results differ from person to person, so there is no one result to
   keep warm.
 
-  [[refresh-due-caches!]] does a pass over the policies. A task runs it every minute
-  ([[metabase.cache.refresh.task]]), and so can a scheduler outside Metabase where background work doesn't get any
-  CPU, such as Cloud Run with request-based billing ([[metabase.cache.refresh.api]]). Each policy is claimed under a
-  cluster lock before it is refreshed, so passes that overlap, on one instance or several, never refresh the same
-  policy twice."
+  [[refresh-due-caches!]] does a pass over the policies, which a task runs every minute
+  ([[metabase.cache.refresh.task]]). Each policy is claimed under a cluster lock before it is refreshed, so that with
+  several instances sharing the app DB only one of them refreshes it."
   (:require
    [buddy.core.codecs :as codecs]
    [java-time.api :as t]

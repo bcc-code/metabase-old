@@ -30494,59 +30494,6 @@
         "tags" : [ "/api/cache" ]
       }
     },
-    "/api/cache-refresh/run" : {
-      "post" : {
-        "description" : "Refresh the cached results of the questions and dashboards whose caching policy refreshes them automatically and\n  that are due, and record the runs of cache invalidation schedules: what a task does every minute. Returns once the\n  refresh is done, so that it runs while a request is in progress, for hosts that give background work no CPU between\n  requests (such as Cloud Run with request-based billing). Call it every minute from a scheduler such as Google Cloud\n  Scheduler.\n\n  Not authenticated by a session: requests send the secret set in `MB_CACHE_REFRESH_TRIGGER_SECRET` in the\n  `X-Metabase-Cache-Refresh-Secret` header. Responds 404 when that isn't set.",
-        "operationId" : "post-api-cache-refresh-run",
-        "parameters" : [ ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "additionalProperties" : false,
-                "properties" : { },
-                "type" : "object"
-              }
-            }
-          }
-        },
-        "responses" : {
-          "2XX" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "properties" : {
-                    "duration_ms" : {
-                      "type" : "integer"
-                    },
-                    "policies_refreshed" : {
-                      "type" : "integer"
-                    },
-                    "queries_failed" : {
-                      "type" : "integer"
-                    },
-                    "queries_refreshed" : {
-                      "type" : "integer"
-                    }
-                  },
-                  "required" : [ "policies_refreshed", "queries_refreshed", "queries_failed", "duration_ms" ],
-                  "type" : "object"
-                }
-              }
-            },
-            "description" : "Successful response"
-          },
-          "4XX" : {
-            "description" : "Client error response"
-          },
-          "5XX" : {
-            "description" : "Server error response"
-          }
-        },
-        "summary" : "POST /api/cache-refresh/run",
-        "tags" : [ "/api/cache-refresh" ]
-      }
-    },
     "/api/cache/invalidate" : {
       "post" : {
         "description" : "Invalidate cache entries.\n\n  Use it like `/api/cache/invalidate?database=1&dashboard=15` (any number of database/dashboard/question can be\n  supplied).\n\n  `&include=overrides` controls whenever you want to invalidate cache for a specific cache configuration without\n  touching all nested configurations, or you want your invalidation to trickle down to every card.\n\n  `root=0` stands for the root (instance-wide) configuration, and with `&include=overrides` for every cached result.\n  Only admins can invalidate it.",
