@@ -8,13 +8,13 @@ resource "random_password" "db" {
 
 resource "google_sql_database_instance" "metabase" {
   name                = "${var.name}-appdb"
-  region              = var.region
+  region              = local.region
   database_version    = "POSTGRES_16"
   deletion_protection = var.db_deletion_protection
 
   settings {
     edition                     = "ENTERPRISE"
-    tier                        = var.db_tier
+    tier                        = local.db_tier
     availability_type           = var.db_high_availability ? "REGIONAL" : "ZONAL"
     disk_type                   = "PD_SSD"
     disk_size                   = var.db_disk_size_gb

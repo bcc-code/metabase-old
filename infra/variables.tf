@@ -1,28 +1,33 @@
-variable "project_id" {
-  description = "Google Cloud project to host Metabase in. A project of its own is recommended."
+# Filled in by the Infra Platform's Deploy Terraform workflow.
+
+variable "props" {
   type        = string
+  description = "A JSON string containing the properties of the current project."
 }
 
-variable "region" {
-  description = "Region for every regional resource. europe-north1 (Finland) is the closest region to Norway with every service used here, and keeps all data in the EU/EEA."
+variable "deployment_props" {
   type        = string
-  default     = "europe-north1"
+  description = "A JSON string containing the properties of the current deployment."
 }
+
+# Optional. Set them in the GitHub variable MAIN_TERRAFORM_VARS of an environment, one `name=value` per line.
 
 variable "name" {
-  description = "Prefix for resource names."
+  description = "Prefix for resource names, and the app name in the platform gateway's route registry."
   type        = string
   default     = "metabase"
 }
 
-variable "domain" {
-  description = "Public host name Metabase is served at, such as metabase.bcc.no. Point an A record for it at the `load_balancer_ip` output."
+variable "hostname" {
+  description = "Host name Metabase is served at. Defaults to metabase.bcc.no in prod and metabase.<environment>.bcc.no elsewhere, following the platform's environment naming."
   type        = string
+  default     = null
 }
 
 variable "image" {
-  description = "The BCC Metabase container image, such as europe-north1-docker.pkg.dev/PROJECT/metabase/metabase:v0.66.0-bcc.1 (see README.md for building it)."
+  description = "The image Terraform deploys when it creates the service. Later images are rolled out by the Build and deploy Metabase workflow, which Terraform leaves alone. Defaults to the latest image in the project's registry."
   type        = string
+  default     = null
 }
 
 variable "timezone" {
@@ -32,15 +37,15 @@ variable "timezone" {
 }
 
 variable "cpu" {
-  description = "vCPUs per Metabase instance."
+  description = "vCPUs per Metabase instance. Defaults to 2 in prod and staging, 1 elsewhere."
   type        = string
-  default     = "2"
+  default     = null
 }
 
 variable "memory" {
-  description = "Memory per Metabase instance. Metabase needs at least 2Gi; 4Gi leaves room for large results and exports."
+  description = "Memory per Metabase instance. Defaults to 4Gi in prod and staging, 2Gi elsewhere. Metabase needs at least 2Gi."
   type        = string
-  default     = "4Gi"
+  default     = null
 }
 
 variable "min_instances" {
@@ -55,15 +60,15 @@ variable "min_instances" {
 }
 
 variable "max_instances" {
-  description = "Instances Cloud Run may scale out to under load. They share the application database, which coordinates scheduled work between them."
+  description = "Instances Cloud Run may scale out to under load. Defaults to 3 in prod and staging, 1 elsewhere."
   type        = number
-  default     = 3
+  default     = null
 }
 
 variable "db_tier" {
-  description = "Cloud SQL machine type of the application database."
+  description = "Cloud SQL machine type of the application database. Defaults to db-custom-2-7680 in prod and staging, db-custom-1-3840 elsewhere."
   type        = string
-  default     = "db-custom-2-7680"
+  default     = null
 }
 
 variable "db_disk_size_gb" {
@@ -73,7 +78,7 @@ variable "db_disk_size_gb" {
 }
 
 variable "db_high_availability" {
-  description = "Run the application database with a standby in a second zone (Cloud SQL regional availability). Doubles the database cost; recommended once Metabase is business critical."
+  description = "Run the application database with a standby in a second zone (Cloud SQL regional availability). Doubles the database cost."
   type        = bool
   default     = false
 }
@@ -87,7 +92,7 @@ variable "db_deletion_protection" {
 variable "subnet_cidr" {
   description = "Range of the subnet Metabase's outbound traffic leaves through. Must not overlap networks you peer with or connect to."
   type        = string
-  default     = "10.10.0.0/24"
+  default     = "10.20.0.0/24"
 }
 
 variable "rate_limit_per_minute" {

@@ -1,10 +1,16 @@
 locals {
-  env = merge(
+  # The image Terraform deploys when it creates the service; see var.image.
+  initial_image = coalesce(
+    var.image,
+    "${local.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.metabase.repository_id}/metabase:latest",
+  )
+
+  container_env = merge(
     {
       MB_DB_TYPE               = "postgres"
       MB_DB_CONNECTION_URI     = "jdbc:postgresql://${google_sql_database_instance.metabase.private_ip_address}:5432/${google_sql_database.metabase.name}?sslmode=require"
       MB_DB_USER               = google_sql_user.metabase.name
-      MB_SITE_URL              = "https://${var.domain}"
+      MB_SITE_URL              = "https://${local.hostname}"
       MB_JETTY_PORT            = "3000"
       JAVA_TIMEZONE            = var.timezone
       JAVA_OPTS                = "-XX:MaxRAMPercentage=75"
@@ -24,10 +30,10 @@ locals {
 
 resource "google_cloud_run_v2_service" "metabase" {
   name     = var.name
-  location = var.region
+  location = local.region
 
-  # Only the load balancer reaches Metabase, so Cloud Armor and the managed certificate always apply. People sign in
-  # to Metabase itself (login.bcc.no), and public links and embeds must work without a Google account, so Cloud Run
+  # Only the platform gateway reaches Metabase, so Cloud Armor and the gateway's certificate always apply. People sign
+  # in to Metabase itself (login.bcc.no), and public links and embeds must work without a Google account, so Cloud Run
   # doesn't check who calls it.
   ingress              = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
   invoker_iam_disabled = true
@@ -40,7 +46,7 @@ resource "google_cloud_run_v2_service" "metabase" {
 
     scaling {
       min_instance_count = var.min_instances
-      max_instance_count = var.max_instances
+      max_instance_count = local.max_instances
     }
 
     vpc_access {
@@ -52,7 +58,7 @@ resource "google_cloud_run_v2_service" "metabase" {
     }
 
     containers {
-      image = var.image
+      image = local.initial_image
 
       ports {
         container_port = 3000
@@ -60,8 +66,8 @@ resource "google_cloud_run_v2_service" "metabase" {
 
       resources {
         limits = {
-          cpu    = var.cpu
-          memory = var.memory
+          cpu    = local.cpu
+          memory = local.memory
         }
         # Instance-based billing: CPU stays allocated between requests, so alerts, subscriptions, database sync and
         # automatic cache refreshing keep running in the background.
@@ -70,7 +76,7 @@ resource "google_cloud_run_v2_service" "metabase" {
       }
 
       dynamic "env" {
-        for_each = local.env
+        for_each = local.container_env
         content {
           name  = env.key
           value = env.value
@@ -114,8 +120,16 @@ resource "google_cloud_run_v2_service" "metabase" {
     }
   }
 
+  lifecycle {
+    # The Build and deploy Metabase workflow rolls out new images.
+    ignore_changes = [
+      template[0].containers[0].image,
+      client,
+      client_version,
+    ]
+  }
+
   depends_on = [
-    google_project_service.enabled,
     google_secret_manager_secret_iam_member.metabase,
     google_secret_manager_secret_version.metabase,
     google_sql_user.metabase,

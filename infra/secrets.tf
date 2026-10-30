@@ -1,5 +1,5 @@
 # Secrets reach Metabase from Secret Manager, never as plain environment values. Both are generated here, so they
-# also sit in the Terraform state: keep the state bucket private.
+# also sit in the Terraform state, which the Infra Platform keeps in its own storage.
 
 resource "random_password" "encryption_key" {
   length  = 64
@@ -21,12 +21,10 @@ resource "google_secret_manager_secret" "metabase" {
   replication {
     user_managed {
       replicas {
-        location = var.region
+        location = local.region
       }
     }
   }
-
-  depends_on = [google_project_service.enabled]
 }
 
 resource "google_secret_manager_secret_version" "metabase" {

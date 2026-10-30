@@ -42,13 +42,13 @@ docker build -t bcc-metabase .
 The root `Dockerfile` builds the OSS edition by default. Without Docker: `./bin/build.sh` (needs Java 21+, the
 Clojure CLI and Bun), which produces `target/uberjar/metabase.jar`.
 
-To host it on Google Cloud (Cloud Run, Cloud SQL, a load balancer with a managed certificate), use the Terraform
-configuration and instructions in [`infra/gcp/`](infra/gcp/README.md).
+BCC hosts it on Google Cloud through the BCC Infra Platform (Cloud Run, Cloud SQL, the shared platform gateway),
+deployed from GitHub Actions: see [`infra/`](infra/README.md) for the Terraform, the workflows and the steps.
 
 Metabase runs scheduled work inside the server process: alerts, dashboard subscriptions, database sync, automatic
 cache refreshing and scheduled Git sync imports. Wherever you host it, keep at least one instance running with CPU
-allocated between requests. On Cloud Run that means instance-based billing (`--no-cpu-throttling`) and
-`--min-instances=1`, which `infra/gcp/` sets up.
+allocated between requests. On Cloud Run that means instance-based billing and at least one instance, which
+`infra/` sets up.
 
 Environment variables you should set in production:
 

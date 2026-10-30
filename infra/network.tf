@@ -1,17 +1,16 @@
 # A VPC of Metabase's own. Cloud Run sends all its outbound traffic into it (Direct VPC egress): to the application
 # database over its private IP, and to everything else (data warehouses, login.bcc.no, email) through Cloud NAT
-# with one static IP address, which BCC's databases and firewalls can allow.
+# with one static IP address, which BCC's databases and firewalls can allow. Its range stays clear of the platform's
+# Shared VPC (10.10.0.0/16 and 10.11.0.0/16).
 
 resource "google_compute_network" "metabase" {
   name                    = "${var.name}-vpc"
   auto_create_subnetworks = false
-
-  depends_on = [google_project_service.enabled]
 }
 
 resource "google_compute_subnetwork" "run" {
   name                     = "${var.name}-run"
-  region                   = var.region
+  region                   = local.region
   network                  = google_compute_network.metabase.id
   ip_cidr_range            = var.subnet_cidr
   private_ip_google_access = true
@@ -30,25 +29,25 @@ resource "google_service_networking_connection" "private_services" {
   network                 = google_compute_network.metabase.id
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.private_services.name]
+
+  depends_on = [google_project_service.servicenetworking]
 }
 
 resource "google_compute_address" "egress" {
   name        = "${var.name}-egress"
-  region      = var.region
+  region      = local.region
   description = "Metabase's outbound IP address: allow it on the databases Metabase connects to."
-
-  depends_on = [google_project_service.enabled]
 }
 
 resource "google_compute_router" "metabase" {
   name    = "${var.name}-router"
-  region  = var.region
+  region  = local.region
   network = google_compute_network.metabase.id
 }
 
 resource "google_compute_router_nat" "metabase" {
   name                               = "${var.name}-nat"
-  region                             = var.region
+  region                             = local.region
   router                             = google_compute_router.metabase.name
   nat_ip_allocate_option             = "MANUAL_ONLY"
   nat_ips                            = [google_compute_address.egress.self_link]

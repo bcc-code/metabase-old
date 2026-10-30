@@ -1,0 +1,43 @@
+# Creates (or updates) the Metabase landing zone on the BCC Infra Platform: a Google Cloud project per environment,
+# the team's access to it, and the GitHub environment variables the other BCC workflows use.
+# See infra/README.md and https://developer.bcc.no/bcc-platform/creating_projects.html
+name: BCC - Provision Project
+run-name: Provision Project - ${{ inputs.environment }} - ${{ inputs.action }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        default: sandbox
+        options:
+          - sandbox
+          - prod
+      action:
+        type: choice
+        default: apply
+        options:
+          - apply
+          - plan
+          - plan destroy
+          - destroy
+
+permissions: {}
+
+jobs:
+  provisioning:
+    name: Provisioning
+    # The platform team maintains this workflow on main, as its documentation shows.
+    uses: bcc-code/bcc-platform-deploy/.github/workflows/landing-zone.yml@main
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      project-name: metabase
+      environment: ${{ inputs.environment }}
+      deploy_on: Google Cloud
+      repositories: ${{ github.repository }}
+      # The BCC team(s) whose org-bcc-it-[team]-developer and -sysadmin groups get access. Replace before the first run.
+      teams: REPLACE-WITH-TEAM
+      gcp-billing-account: BCC - Nordcloud
+      action: ${{ inputs.action }}

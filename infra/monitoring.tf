@@ -1,5 +1,5 @@
 resource "google_monitoring_uptime_check_config" "metabase" {
-  display_name = "Metabase health (${var.domain})"
+  display_name = "Metabase health (${local.hostname})"
   timeout      = "10s"
   period       = "60s"
   checker_type = "STATIC_IP_CHECKERS"
@@ -14,8 +14,8 @@ resource "google_monitoring_uptime_check_config" "metabase" {
   monitored_resource {
     type = "uptime_url"
     labels = {
-      project_id = var.project_id
-      host       = var.domain
+      project_id = local.project_id
+      host       = local.hostname
     }
   }
 
@@ -23,8 +23,6 @@ resource "google_monitoring_uptime_check_config" "metabase" {
     content = "ok"
     matcher = "CONTAINS_STRING"
   }
-
-  depends_on = [google_project_service.enabled]
 }
 
 resource "google_monitoring_notification_channel" "email" {
@@ -40,7 +38,7 @@ resource "google_monitoring_notification_channel" "email" {
 resource "google_monitoring_alert_policy" "down" {
   count = var.alert_email == "" ? 0 : 1
 
-  display_name          = "Metabase is down (${var.domain})"
+  display_name          = "Metabase is down (${local.hostname})"
   combiner              = "OR"
   notification_channels = [google_monitoring_notification_channel.email[0].id]
 
@@ -67,7 +65,7 @@ resource "google_monitoring_alert_policy" "down" {
   }
 
   documentation {
-    content   = "Metabase at https://${var.domain} fails its health check. See Cloud Run logs for the ${var.name} service."
+    content   = "Metabase at https://${local.hostname} fails its health check. See Cloud Run logs for the ${var.name} service."
     mime_type = "text/markdown"
   }
 }
