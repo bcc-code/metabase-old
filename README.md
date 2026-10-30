@@ -1,5 +1,9 @@
 # Metabase
 
+> **This is BCC's fork.** It runs the open-source edition with BCC's own SSO (OIDC/JWT), row- and column-level
+> security, advanced permissions, granular caching, white-labeling, custom visualizations and Git sync, and without
+> upgrade advertising. See [FORK.md](FORK.md) for what's different and how to configure, build and deploy it.
+
 [Metabase](https://www.metabase.com) is the easy, open-source way for everyone in your company to ask questions and learn from data.
 
 ![Metabase Product Screenshot](./docs/images/metabase-product-screenshot-updated.png)

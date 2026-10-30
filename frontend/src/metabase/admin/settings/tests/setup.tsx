@@ -72,20 +72,6 @@ export const ossRoutes: RouteMap = {
     path: "/public-sharing",
     testPattern: /Enable Public Sharing/i,
   },
-  license: { path: "/license", testPattern: /Looking for more/i },
-  appearance: {
-    path: "/appearance",
-    testPattern: /Make Metabase look like you/i,
-  },
-  cloud: { path: "/cloud", testPattern: /Migrate to Metabase Cloud/i },
-  remoteSync: {
-    path: "/remote-sync",
-    testPattern: /Manage your Metabase content in Git/i,
-  },
-};
-
-export const enterpriseRoutes: RouteMap = {
-  license: { path: "/license", testPattern: /License/i, role: "heading" },
 };
 
 export const premiumRoutes: RouteMap = {
@@ -96,7 +82,9 @@ export const premiumRoutes: RouteMap = {
   jwt: { path: "/authentication/jwt", testPattern: /Server Settings/i },
 };
 
-export const upsellRoutes: RouteMap = {
+// Whitelabel pages as the enterprise plugins render them with the feature. This
+// fork renders its own pages, see `metabase/fork/whitelabel`.
+export const whitelabelRoutes: RouteMap = {
   appearance: { path: "/whitelabel", testPattern: /Color palette/i },
   branding: { path: "/whitelabel/branding", testPattern: /Color palette/i },
   concealMetabase: {
@@ -178,7 +166,6 @@ export const setup = async ({
     last_checked_at: null,
     advisories: [],
   });
-  fetchMock.get("path:/api/cloud-migration", { status: 204 });
   fetchMock.get("path:/api/ee/sso/oidc", []);
   setupLibraryEndpoints();
   fetchMock.get("path:/api/ee/remote-sync/dirty", {

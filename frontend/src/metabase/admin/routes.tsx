@@ -100,13 +100,6 @@ const groupDetail = () =>
     /* webpackChunkName: "admin" */ "metabase/admin/people/containers/GroupDetailApp"
   ).then(({ GroupDetailApp }) => ({ Component: GroupDetailApp }));
 
-const upsellTenants = () =>
-  import(/* webpackChunkName: "admin" */ "./upsells/UpsellTenants").then(
-    ({ UpsellTenants }) => ({
-      Component: UpsellTenants,
-    }),
-  );
-
 const performanceApp = () =>
   import(
     /* webpackChunkName: "admin" */ "metabase/admin/performance/components/PerformanceApp"
@@ -245,18 +238,14 @@ export const getRoutes = (
             </Route>
 
             {/* Tenants */}
-            <Route
-              path="tenants"
-              element={createElement(createTenantsRouteGuard())}
-            >
-              {PLUGIN_TENANTS.tenantsRoutes ?? (
-                <>
-                  <Route index lazy={upsellTenants} />
-                  <Route path="groups" lazy={upsellTenants} />
-                  <Route path="people" lazy={upsellTenants} />
-                </>
-              )}
-            </Route>
+            {PLUGIN_TENANTS.tenantsRoutes && (
+              <Route
+                path="tenants"
+                element={createElement(createTenantsRouteGuard())}
+              >
+                {PLUGIN_TENANTS.tenantsRoutes}
+              </Route>
+            )}
 
             <Route path="" lazy={peopleListing}>
               {modalRoute("new", NewUserModal, { noWrap: true })}

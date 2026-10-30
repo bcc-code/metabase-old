@@ -7,9 +7,12 @@
 
 (def features
   "Names of the features this fork always provides, spelled the way they appear in a premium token's feature list."
-  #{"cache-granular-controls"
+  #{"advanced-permissions"
+    "cache-granular-controls"
     "custom-viz"
+    "disable-password-login"
     "remote-sync"
+    "sandboxes"
     "sso-jwt"
     "sso-oidc"
     "whitelabel"})

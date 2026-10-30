@@ -686,6 +686,7 @@ interface PublicSettings {
   "version-info-last-checked": string | null;
   "airgap-enabled": boolean;
   "custom-viz-enabled": boolean;
+  "custom-visualizations-enabled": boolean;
   "custom-viz-plugin-dev-mode-enabled": boolean;
   "non-table-chart-generated": boolean;
   "use-tenants": boolean;
@@ -844,8 +845,23 @@ export interface EnterpriseSettings extends Settings {
   "jwt-attribute-groups": string | null;
   "jwt-attribute-tenant": string | null;
   "jwt-group-sync": boolean | null;
+  "jwt-user-attributes"?: string | null;
   "oidc-enabled": boolean;
   "oidc-configured": boolean;
+  "oidc-issuer-uri"?: string | null;
+  "oidc-client-id"?: string | null;
+  "oidc-client-secret"?: string | null;
+  "oidc-scopes"?: string | null;
+  "oidc-authorization-params"?: string | null;
+  "oidc-login-prompt"?: string | null;
+  "oidc-attribute-email"?: string | null;
+  "oidc-attribute-firstname"?: string | null;
+  "oidc-attribute-lastname"?: string | null;
+  "oidc-attribute-groups"?: string | null;
+  "oidc-user-attributes"?: string | null;
+  "oidc-group-sync"?: boolean | null;
+  "oidc-group-mappings"?: GroupMappings | null;
+  "oidc-allowed-email-domains"?: string | null;
   // sensitive, so only the admin settings list carries it; pages use /api/ee/sso/oidc
   "oidc-providers"?: string | null;
   "saml-enabled": boolean;

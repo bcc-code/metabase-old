@@ -188,6 +188,7 @@ export const createMockSettings = (
   "admin-email": "admin@metabase.test",
   "airgap-enabled": false,
   "custom-viz-enabled": false,
+  "custom-visualizations-enabled": true,
   "custom-viz-plugin-dev-mode-enabled": false,
   "allowed-iframe-hosts": "*",
   "csp-img-allowed-hosts": "",

@@ -5,7 +5,6 @@ import {
   ossRoutes,
   premiumRoutes,
   routeObjtoArray,
-  upsellRoutes,
 } from "./setup";
 
 const setup = async ({ isAdmin = true, initialRoute = "" } = {}) => {
@@ -19,7 +18,6 @@ const setup = async ({ isAdmin = true, initialRoute = "" } = {}) => {
 
 const routes = routeObjtoArray(ossRoutes);
 const notFoundRoutes = routeObjtoArray(premiumRoutes);
-const upsells = routeObjtoArray(upsellRoutes);
 
 describe("Admin Settings Routing - OSS", () => {
   it("renders the settings editor", async () => {
@@ -39,27 +37,25 @@ describe("Admin Settings Routing - OSS", () => {
     );
   });
 
-  describe("should show an upsell on the $name route", () => {
-    it.each(upsells)(
-      "should show an upsell on the $name route",
-      async ({ path }) => {
-        await setup({ isAdmin: true, initialRoute: path });
+  describe("does not render pages that only advertise paid plans", () => {
+    it.each(["/license", "/cloud"])(
+      "renders not found on %s",
+      async (initialRoute) => {
+        await setup({ isAdmin: true, initialRoute });
         expect(
-          await screen.findByText("Make Metabase look like you"),
+          await screen.findByText("We're a little lost..."),
         ).toBeInTheDocument();
+        expect(
+          screen.queryByText("Explore our paid plans"),
+        ).not.toBeInTheDocument();
+        expect(
+          screen.queryByText("Migrate to Metabase Cloud"),
+        ).not.toBeInTheDocument();
       },
     );
   });
 
   describe("does not render the premium routes", () => {
-    it("does not show the enterprise version of the license route", async () => {
-      await setup({ isAdmin: true, initialRoute: "/license" });
-      expect(
-        await screen.findByText("Explore our paid plans"),
-      ).toBeInTheDocument();
-      expect(screen.queryByText(/Billing/)).not.toBeInTheDocument();
-    });
-
     it.each(notFoundRoutes)(
       "should not find the $name enterprise route",
       async ({ path, testPattern }) => {

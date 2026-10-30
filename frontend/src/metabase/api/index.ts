@@ -9,6 +9,7 @@ export * from "./card";
 export * from "./channel";
 export * from "./collection";
 export * from "./comment";
+export * from "./custom-viz-plugin";
 export * from "./dashboard";
 export * from "./database";
 export * from "./dataset";

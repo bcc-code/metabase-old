@@ -34,10 +34,11 @@
     :model/CollectionPermissionGraphRevision metabase.permissions.models.collection-permission-graph-revision
     :model/Comment                           metabase.comments.models.comment
     :model/CommentReaction                   metabase.comments.models.comment-reaction
-    :model/ConnectionImpersonation           metabase-enterprise.impersonation.models
+    :model/ConnectionImpersonation           metabase.data-access.models.connection-impersonation
     :model/ContentDiagnosticsFinding         metabase-enterprise.content-diagnostics.models.finding
     :model/ContentTranslation                metabase.content-translation.models
-    :model/CustomVizPlugin                   metabase-enterprise.custom-viz-plugin.models.custom-viz-plugin
+    :model/CustomVisualization               metabase.custom-viz.models.custom-visualization
+    :model/CustomVizPlugin                  metabase-enterprise.custom-viz-plugin.models.custom-viz-plugin
     :model/DataApp                           metabase-enterprise.data-apps.models.data-app
     :model/Dashboard                         metabase.dashboards.models.dashboard
     :model/DashboardBookmark                 metabase.bookmarks.models.bookmark
@@ -66,8 +67,10 @@
     :model/FieldUserSettings                 metabase.warehouse-schema.models.field-user-settings
     :model/TableUserSettings                 metabase.warehouse-schema.models.table-user-settings
     :model/FieldValues                       metabase.warehouse-schema.models.field-values
+    :model/GitSyncEntity                     metabase.remote-sync.models.git-sync-entity
+    :model/GitSyncTask                       metabase.remote-sync.models.git-sync-task
     :model/Glossary                          metabase.glossary.models.glossary
-    :model/Sandbox                           metabase-enterprise.sandbox.models.sandbox
+    :model/Sandbox                           metabase.data-access.models.sandbox
     :model/ImplicitAction                    metabase.actions.models
     :model/LoginHistory                      metabase.login-history.models.login-history
     :model/McpFeedback                       metabase.mcp.models.mcp-feedback

@@ -7,4 +7,20 @@
  * enterprise build's `initializePlugins` does. Nothing in this folder may
  * import from `enterprise/`.
  */
-export function initializeForkPlugins() {}
+import { initializeAdvancedPermissionsPlugin } from "./advanced-permissions";
+import { initializeCachingPlugin } from "./caching";
+import { initializeCustomVizPlugin } from "./custom-viz";
+import { initializeDataAccessPlugin } from "./data-access";
+import { initializeGitSyncPlugin } from "./git-sync";
+import { initializeSsoPlugin } from "./sso";
+import { initializeWhitelabelPlugin } from "./whitelabel";
+
+export function initializeForkPlugins() {
+  initializeAdvancedPermissionsPlugin();
+  initializeCachingPlugin();
+  initializeCustomVizPlugin();
+  initializeDataAccessPlugin();
+  initializeGitSyncPlugin();
+  initializeSsoPlugin();
+  initializeWhitelabelPlugin();
+}

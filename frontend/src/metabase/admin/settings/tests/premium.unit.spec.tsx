@@ -2,11 +2,10 @@ import { screen, waitFor, within } from "__support__/ui";
 
 import {
   setup as baseSetup,
-  enterpriseRoutes,
   ossRoutes,
   premiumRoutes,
   routeObjtoArray,
-  upsellRoutes,
+  whitelabelRoutes,
 } from "./setup";
 
 const setup = async ({
@@ -26,12 +25,10 @@ const setup = async ({
 const routes = routeObjtoArray({
   ...ossRoutes,
   ...premiumRoutes,
-  ...upsellRoutes,
-  ...enterpriseRoutes, // includes the license route
-  cloud: { path: "skip", testPattern: /nope/ },
-  // `ossRoutes.remoteSync` expects OSS/Starter upsell copy; this suite enables all features (incl. remote_sync), so assert the real settings UI instead.
+  ...whitelabelRoutes,
+  // this suite enables all features (incl. remote_sync), so the remote sync settings UI renders
   remoteSync: { path: "/remote-sync", testPattern: /Set up remote sync/i },
-}).filter(({ path }) => path !== "skip");
+});
 
 describe("Admin Settings Routing - Enterprise with all features", () => {
   it("renders the settings editor", async () => {
@@ -57,23 +54,23 @@ describe("Admin Settings Routing - Enterprise with all features", () => {
     );
   });
 
-  it("should show an upsell on the cloud route without hosting", async () => {
-    await setup({
-      initialRoute: "/cloud",
-      features: { hosting: false },
-    });
-    expect(
-      await screen.findByText("Migrate to Metabase Cloud"),
-    ).toBeInTheDocument();
-  });
-
-  it("should show cloud settings on the cloud route without hosting", async () => {
-    await setup({
-      initialRoute: "/cloud",
-      features: { hosting: true },
-    });
-    expect(await screen.findByText("Cloud settings")).toBeInTheDocument();
-  });
+  it.each([
+    { route: "/license", hosting: false },
+    { route: "/cloud", hosting: false },
+    { route: "/cloud", hosting: true },
+  ])(
+    "should render not found on $route (hosting: $hosting)",
+    async ({ route, hosting }) => {
+      await setup({ initialRoute: route, features: { hosting } });
+      expect(
+        await screen.findByText("We're a little lost..."),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText("Migrate to Metabase Cloud"),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText("Cloud settings")).not.toBeInTheDocument();
+    },
+  );
 
   it("should offer a custom URL landing page with the whitelabel feature", async () => {
     await setup({ isAdmin: true, initialRoute: "/general" });

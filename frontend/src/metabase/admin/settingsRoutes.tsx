@@ -147,11 +147,6 @@ const publicSharingSettings = () =>
     Component: PublicSharingSettingsPage,
   }));
 
-const licenseSettings = () =>
-  import(
-    /* webpackChunkName: "admin-settings" */ "./settings/components/SettingsPages/LicenseSettingsPage"
-  ).then(({ LicenseSettingsPage }) => ({ Component: LicenseSettingsPage }));
-
 /** The `appearance` page, opened on one of its tabs. */
 const appearanceSettings = (tab?: "branding" | "conceal-metabase") => () =>
   import(
@@ -161,11 +156,6 @@ const appearanceSettings = (tab?: "branding" | "conceal-metabase") => () =>
       return <AppearanceSettingsPage tab={tab} />;
     },
   }));
-
-const cloudSettings = () =>
-  import(
-    /* webpackChunkName: "admin-settings" */ "./settings/components/SettingsPages/CloudSettingsPage"
-  ).then(({ CloudSettingsPage }) => ({ Component: CloudSettingsPage }));
 
 export const getSettingsRoutes = (store: Store<State>) => {
   const devModeEnabled = getSetting(
@@ -236,7 +226,6 @@ export const getSettingsRoutes = (store: Store<State>) => {
           lazy={PLUGIN_TRANSFORMS_PYTHON.pythonRunnerSettingsPage}
         />
         <Route path="public-sharing" lazy={publicSharingSettings} />
-        <Route path="license" lazy={licenseSettings} />
         <Route path="appearance" lazy={appearanceSettings()} />
         <Route path="whitelabel" lazy={appearanceSettings("branding")} />
         <Route
@@ -247,7 +236,6 @@ export const getSettingsRoutes = (store: Store<State>) => {
           path="whitelabel/conceal-metabase"
           lazy={appearanceSettings("conceal-metabase")}
         />
-        <Route path="cloud" lazy={cloudSettings} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Route>

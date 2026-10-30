@@ -53,7 +53,7 @@
 
 ;;; TODO - rename this to premium-features-token?
 (defsetting premium-embedding-token
-  (deferred-tru "Token for premium features. Go to the MetaStore to get yours!")
+  (deferred-tru "Token for premium features.")
   :audit :never
   :sensitive? true
   :setter (fn [new-value]
@@ -372,12 +372,20 @@
   "Should we offer users the Metabase-managed AI provider?"
   :offer-metabase-ai-managed)
 
+(defsetting custom-visualizations-enabled
+  (deferred-tru "Whether people can use the custom visualizations that admins install.")
+  :type       :boolean
+  :default    true
+  :visibility :admin
+  :audit      :getter
+  :export?    false)
+
 (defenterprise enable-custom-viz?
-  "Should we enable custom visualizations? OSS falls back to `false`; the EE implementation checks the
-  `custom-viz-enabled` setting and the `:custom-viz` premium feature."
+  "Should we enable custom visualizations? This fork implements them in its own `custom-viz` module, so the OSS
+  fallback is the [[custom-visualizations-enabled]] setting."
   metabase-enterprise.custom-viz-plugin.settings
   []
-  false)
+  (custom-visualizations-enabled))
 
 (define-premium-feature enable-data-complexity-score?
   "Should we expose Data Complexity Score?"
