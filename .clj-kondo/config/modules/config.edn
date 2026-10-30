@@ -505,6 +505,7 @@
 
   cache
   {:team "UX West"
+   :module-exports #{cache.refresh}
    :api  #{metabase.cache.api
            metabase.cache.core
            metabase.cache.init}
@@ -524,6 +525,30 @@
                     :model/Dashboard
                     :model/DashboardCard
                     :model/Database}}
+
+  cache.refresh
+  {:team "BCC"
+   :api  #{metabase.cache.refresh.api
+           metabase.cache.refresh.init}
+   :uses #{api
+           app-db
+           cache
+           data-access
+           lib
+           lib.schema
+           premium-features
+           query-processor
+           request
+           settings
+           task
+           util}
+   :model-imports #{:model/CacheConfig
+                    :model/Card
+                    :model/Dashboard
+                    :model/DashboardCard
+                    :model/DashboardCardSeries
+                    :model/Query
+                    :model/QueryExecution}}
 
   ;; TODO -- way too many API namespaces.
   channel

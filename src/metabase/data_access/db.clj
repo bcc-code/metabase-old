@@ -106,6 +106,15 @@
                                     [:in :s.group_id (set group-ids)]]})
         #{})))
 
+(mu/defn database-has-sandboxes? :- :boolean
+  "Whether any group has a Sandbox on a Table of the Database with `db-id`."
+  [db-id :- ::lib.schema.id/database]
+  (t2/exists? :model/Sandbox
+              {:select [:s.id]
+               :from   [[:sandboxes :s]]
+               :join   [[:metabase_table :t] [:= :t.id :s.table_id]]
+               :where  [:= :t.db_id [:auto/param db-id]]}))
+
 (mu/defn insert-sandbox! :- :map
   "Insert a Sandbox and return it."
   [sandbox :- ::data-access.schema/sandbox.update]

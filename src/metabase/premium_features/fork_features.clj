@@ -9,6 +9,7 @@
   "Names of the features this fork always provides, spelled the way they appear in a premium token's feature list."
   #{"advanced-permissions"
     "cache-granular-controls"
+    "cache-preemptive"
     "custom-viz"
     "disable-password-login"
     "remote-sync"

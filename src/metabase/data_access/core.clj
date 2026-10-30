@@ -27,6 +27,7 @@
   sandbox-restricted-fields
   sandbox-token-for-table
   sandboxed-group-ids-in-database
+  sandboxes-in-database?
   sandboxed-user-for-db?
   sandboxed-user?]
  [metabase.data-access.impersonation
@@ -36,6 +37,7 @@
   hash-input-for-impersonation
   impersonated-user?
   impersonation-enforced-for-db?
+  impersonations-in-database?
   impersonation-token-for-db
   set-role-if-supported!]
  [metabase.data-access.query-processor

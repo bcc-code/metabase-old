@@ -29,11 +29,16 @@
                       (cache.db/cache-configs-for-targets targets))]
     (some configs targets)))
 
+(defn effective-config
+  "The CacheConfig that decides how `card`'s results are cached when it runs on the Dashboard with `dashboard-id` (nil
+  when it doesn't), or nil when there is none."
+  [card dashboard-id]
+  (if (premium-features/enable-cache-granular-controls?)
+    (most-specific-config card dashboard-id)
+    (cache-config/root-strategy)))
+
 (defn effective-strategy
   "The cache strategy for `card`'s results when it runs on the Dashboard with `dashboard-id` (nil when it doesn't), with
   the `:invalidated-at` before which cached results are stale. Nil when its results aren't cached."
   [card dashboard-id]
-  (cache-config/card-strategy (if (premium-features/enable-cache-granular-controls?)
-                                (most-specific-config card dashboard-id)
-                                (cache-config/root-strategy))
-                              card))
+  (cache-config/card-strategy (effective-config card dashboard-id) card))

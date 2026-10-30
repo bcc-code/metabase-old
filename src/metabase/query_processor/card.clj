@@ -367,6 +367,7 @@
     :public-xlsx-download   nil
     :embedded-xlsx-download nil
     :dashboard-subscription nil
+    :cache-refresh          nil
     :pulse                  nil
     :map-tiles              nil
     context))

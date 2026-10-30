@@ -135,6 +135,45 @@ describe("SidebarCacheForm", () => {
     });
   });
 
+  it("saves a policy that refreshes the dashboard's cached results automatically", async () => {
+    const { onBack } = setupForm({ cacheConfigs: [dashboardDuration] });
+    const refreshSwitch = await screen.findByRole("switch", {
+      name: /Refresh cache automatically/,
+    });
+    expect(refreshSwitch).not.toBeChecked();
+
+    await userEvent.click(refreshSwitch);
+    expect(refreshSwitch).toBeChecked();
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(onBack).toHaveBeenCalled());
+    const call = fetchMock.callHistory.lastCall("path:/api/cache", {
+      method: "PUT",
+    });
+    const body: unknown = JSON.parse(String(await call?.request?.text()));
+    expect(body).toEqual({
+      model: "dashboard",
+      model_id: 5,
+      strategy: {
+        type: "duration",
+        duration: 1,
+        unit: "hours",
+        refresh_automatically: true,
+      },
+    });
+  });
+
+  it("offers no automatic refreshing for policies that don't expire results at a known time", async () => {
+    setupForm();
+    await userEvent.click(await screen.findByTestId("cache-strategy-select"));
+    await userEvent.click(
+      await screen.findByRole("option", { name: /^Adaptive/ }),
+    );
+    expect(
+      screen.queryByRole("switch", { name: /Refresh cache automatically/ }),
+    ).not.toBeInTheDocument();
+  });
+
   it("resets the dashboard to the default policy by removing its own", async () => {
     const { onBack } = setupForm({ cacheConfigs: [dashboardDuration] });
     await waitFor(() =>

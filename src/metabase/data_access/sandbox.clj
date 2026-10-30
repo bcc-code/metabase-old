@@ -111,6 +111,11 @@
   [db-id group-ids]
   (data-access.db/sandboxed-group-ids-in-database db-id (set group-ids)))
 
+(defn sandboxes-in-database?
+  "Whether any group has a sandbox on a table of the Database with `db-id`."
+  [db-id]
+  (data-access.db/database-has-sandboxes? db-id))
+
 ;;; ------------------------------------------------- Cache tokens ---------------------------------------------------
 
 (defn sandbox-token-for-table

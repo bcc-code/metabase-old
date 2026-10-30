@@ -119,15 +119,20 @@
           (is (nil? (:next_run_at (stored-config "database" (mt/id))))))))))
 
 (deftest refresh-automatically-needs-preemptive-caching-test
-  (testing "Automatic refreshing isn't stored when nothing refreshes cached results ahead of time"
-    (mt/with-model-cleanup [:model/CacheConfig]
-      (mt/with-premium-features #{}
-        (mt/user-http-request :crowberto :put 200 "cache/"
-                              {:model    "database"
-                               :model_id (mt/id)
-                               :strategy {:type "duration" :duration 1 :unit "hours" :refresh_automatically true}})
-        (is (=? {:data [{:strategy {:type "duration" :refresh_automatically false}}]}
-                (mt/user-http-request :crowberto :get 200 "cache/" :model "database" :id (mt/id))))))))
+  (mt/with-model-cleanup [:model/CacheConfig]
+    (letfn [(store-and-get! []
+              (mt/user-http-request :crowberto :put 200 "cache/"
+                                    {:model    "database"
+                                     :model_id (mt/id)
+                                     :strategy {:type "duration" :duration 1 :unit "hours" :refresh_automatically true}})
+              (mt/user-http-request :crowberto :get 200 "cache/" :model "database" :id (mt/id)))]
+      (testing "This fork refreshes cached results ahead of time, so automatic refreshing is stored"
+        (is (=? {:data [{:strategy {:type "duration" :refresh_automatically true}}]}
+                (store-and-get!))))
+      (testing "Automatic refreshing isn't stored when nothing refreshes cached results ahead of time"
+        (mt/with-dynamic-fn-redefs [premium-features/enable-preemptive-caching? (constantly false)]
+          (is (=? {:data [{:strategy {:type "duration" :refresh_automatically false}}]}
+                  (store-and-get!))))))))
 
 (deftest list-dashboard-and-question-configs-test
   (testing "Listing dashboard and question configs includes their names and collections, for the admin table"

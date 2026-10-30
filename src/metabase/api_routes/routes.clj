@@ -19,6 +19,7 @@
    [metabase.bookmarks.api]
    [metabase.bug-reporting.api]
    [metabase.cache.api]
+   [metabase.cache.refresh.api]
    [metabase.channel.rest.api]
    [metabase.cloud-migration.api]
    [metabase.collections-rest.api]
@@ -98,6 +99,7 @@
          metabase.bookmarks.api/keep-me
          metabase.bug-reporting.api/keep-me
          metabase.cache.api/keep-me
+         metabase.cache.refresh.api/keep-me
          metabase.cloud-migration.api/keep-me
          metabase.comments.api/keep-me
          metabase.collections-rest.api/keep-me
@@ -219,6 +221,7 @@
    "/bookmark"             (+auth 'metabase.bookmarks.api)
    "/bug-reporting"        (+auth 'metabase.bug-reporting.api)
    "/cache"                (+auth 'metabase.cache.api)
+   "/cache-refresh"        'metabase.cache.refresh.api
    "/card"                 (+auth metabase.queries-rest.api/card-routes)
    "/cards"                (+auth metabase.queries-rest.api/cards-routes)
    "/channel"              (+auth metabase.channel.rest.api/channel-routes)

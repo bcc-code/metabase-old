@@ -49,6 +49,7 @@ Environment variables you should set in production:
 | `MB_SITE_URL` | The public `https://` address. The OIDC redirect URI is built from it. |
 | `MB_DB_TYPE`, `MB_DB_CONNECTION_URI` | Use Postgres for the application database in production. |
 | `MB_APPLICATION_COLORS`, `MB_APPLICATION_FONT` | Optional: bake the BCC theme in at deploy time (see [White-labeling](#white-labeling)). |
+| `MB_CACHE_REFRESH_TRIGGER_SECRET` | Only on hosts that give background work no CPU, such as Cloud Run with request-based billing: see [Running on Cloud Run](#running-on-cloud-run). |
 
 ## Development
 
@@ -192,10 +193,84 @@ uses a different path).
 Policies: **Adaptive** (cache for a multiple of the average run time), **Duration** (fixed hours/minutes),
 **Schedule** (results go stale when a cron schedule fires, in the report timezone) and **Don't cache**. The most
 specific policy wins: question → dashboard (when the question runs on that dashboard) → database → default. A
-background job records schedule runs every minute; nothing needs configuring.
+background job records schedule runs every minute; nothing needs configuring (but see
+[Running on Cloud Run](#running-on-cloud-run)).
 
-Not included: preemptive caching (refreshing results before they expire). Models use model persistence instead of
-a caching policy.
+Models use model persistence instead of a caching policy.
+
+### Refresh cache automatically
+
+A question's or dashboard's **Duration** or **Schedule** policy has a **Refresh cache automatically** switch. With
+it on, Metabase runs the queries again as soon as their cached results go stale, so people are served from the cache
+instead of waiting:
+
+- **Schedule**: right after the schedule fires.
+- **Duration**: shortly before the results expire: 2 minutes plus the last 10% of the duration
+  (`MB_QUERY_CACHING_EARLY_REFRESH_RATIO`, default 0.1) before.
+- Either: right after someone clears the cache of the question, dashboard or database.
+
+What runs again is what people ran: per question, the (up to) 10 combinations of filter values applied most often
+during the last caching period, or the last one applied when nobody ran it during that period. A question nobody has
+ever run is left alone. On a dashboard, the policy covers the cards without a policy of their own, with the filter
+values applied on that dashboard.
+
+Questions on a database with row- and column-level security or connection impersonation are **not** refreshed:
+their results differ from person to person, so there is no single result to keep warm. Their caching still works
+for queries people run.
+
+The refresh runs show up in the query log (`query_execution`) with context `cache-refresh`. A background job checks
+every minute what is due. With several Metabase instances on one application database, each policy is refreshed by
+one instance only.
+
+### Running on Cloud Run
+
+Metabase runs its background jobs (automatic cache refreshing, but also alerts, dashboard subscriptions, database
+sync and scheduled Git sync imports) inside the server process. With Cloud Run's **request-based billing** an
+instance gets no CPU between requests, and it is shut down when nobody uses Metabase, so those jobs stall.
+
+**Recommended**: give the service CPU all the time and keep one instance running. Then everything, automatic cache
+refreshing included, works with nothing else to set up:
+
+```bash
+gcloud run services update metabase --no-cpu-throttling --min-instances=1
+```
+
+**If you keep request-based billing**, let Cloud Scheduler call `POST /api/cache-refresh/run` every minute. The
+endpoint does a refresh pass (and records cache schedule runs) while the request is open, so it gets the CPU it needs,
+and returns how much it refreshed. This covers automatic cache refreshing only, not the other background jobs.
+
+1. Generate a secret of at least 32 characters, store it in Secret Manager and expose it to the service as
+   `MB_CACHE_REFRESH_TRIGGER_SECRET`. Without it the endpoint answers 404.
+
+   ```bash
+   openssl rand -hex 32 | gcloud secrets create metabase-cache-refresh-secret --data-file=-
+   ```
+
+   ```bash
+   gcloud run services update metabase \
+     --update-secrets=MB_CACHE_REFRESH_TRIGGER_SECRET=metabase-cache-refresh-secret:latest \
+     --timeout=3600
+   ```
+
+   The longer request timeout lets a pass that reruns many slow queries finish.
+
+2. Create the Cloud Scheduler job. It sends the secret in the `X-Metabase-Cache-Refresh-Secret` header; requests
+   without it, or with a different one, get 403. Anyone who can view the scheduler job can read the header, so
+   limit who can.
+
+   ```bash
+   gcloud scheduler jobs create http metabase-cache-refresh \
+     --location=<region> \
+     --schedule="* * * * *" \
+     --http-method=POST \
+     --uri="https://<your Metabase host>/api/cache-refresh/run" \
+     --headers="X-Metabase-Cache-Refresh-Secret=<the secret>" \
+     --attempt-deadline=30m
+   ```
+
+Calls may overlap: a policy that one pass is refreshing isn't refreshed by another. Cloud Tasks works too: create
+HTTP tasks with the same method, URL and header. But something has to create a task every minute, which is what Cloud
+Scheduler does on its own.
 
 ## White-labeling
 

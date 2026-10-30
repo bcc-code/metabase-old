@@ -164,6 +164,12 @@
   (memoize/ttl (fn [db-id] (data-access.db/database-has-impersonations? db-id))
                :ttl/threshold (* 60 1000)))
 
+(defn impersonations-in-database?
+  "Whether any group has an impersonation policy on the Database with `db-id`. Unlike the check done on every
+  connection checkout, this always reads the app DB."
+  [db-id]
+  (data-access.db/database-has-impersonations? db-id))
+
 (defn forget-database-policies!
   "Drop what this instance remembers about which Databases have impersonation policies; call after changing them."
   []
