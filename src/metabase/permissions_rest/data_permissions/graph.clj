@@ -55,16 +55,16 @@
    :perms/transforms            {:yes :yes :no :no}})
 
 (defenterprise add-impersonations-to-permissions-graph
-  "Augment the permissions graph with active connection impersonation policies. OSS implementation returns graph as-is."
+  "Augment the permissions graph with active connection impersonation policies."
   metabase-enterprise.impersonation.models
-  [graph & [_opts]]
-  graph)
+  [graph & [opts]]
+  ((requiring-resolve 'metabase.data-access.core/add-impersonations-to-permissions-graph) graph opts))
 
 (defenterprise add-sandboxes-to-permissions-graph
-  "Augment the permissions graph with active connection impersonation policies. OSS implementation returns graph as-is."
+  "Augment the permissions graph with active row and column security policies (sandboxes)."
   metabase-enterprise.sandbox.models.sandbox
-  [graph & [_opts]]
-  graph)
+  [graph & [opts]]
+  ((requiring-resolve 'metabase.data-access.core/add-sandboxes-to-permissions-graph) graph opts))
 
 (mu/defn ellide? :- :boolean
   "If a table has the least permissive value for a perm type, leave it out."
@@ -305,16 +305,16 @@
 ;;; ---------------------------------------- Updating permissions -----------------------------------------------------
 
 (defenterprise delete-gtaps-if-needed-after-permissions-change!
-  "Delete GTAPs (sandboxes) that are no longer needed after the permissions graph is updated. This is EE-specific --
-  OSS impl is a no-op, since sandboxes are an EE-only feature."
+  "Delete GTAPs (sandboxes) that are no longer needed after the permissions graph is updated."
   metabase-enterprise.sandbox.models.permissions.delete-sandboxes
-  [_])
+  [graph]
+  ((requiring-resolve 'metabase.data-access.core/delete-sandboxes-if-needed-after-permissions-change!) graph))
 
 (defenterprise delete-impersonations-if-needed-after-permissions-change!
-  "Delete connection impersonation policies that are no longer needed after the permissions graph is updated. This is
-  EE-specific -- OSS impl is a no-op, since connection impersonation is an EE-only feature."
+  "Delete connection impersonation policies that are no longer needed after the permissions graph is updated."
   metabase-enterprise.impersonation.models
-  [_])
+  [graph]
+  ((requiring-resolve 'metabase.data-access.core/delete-impersonations-if-needed-after-permissions-change!) graph))
 
 (defn ee-permissions-exception
   "Exception to throw when a permissions operation fails due to missing Enterprise Edition code, or missing a valid
@@ -594,10 +594,11 @@
 
 (defenterprise check-native-access-without-sandboxes!
   "Throw a 400 if a group in `native-group-db-ids`, a set of `[group-id db-id]` pairs being granted native query
-  access, would also have a sandbox on that database once `graph` is applied. OSS impl is a no-op, since sandboxes are
-  an EE-only feature."
+  access, would also have a sandbox on that database once `graph` is applied."
   metabase-enterprise.sandbox.models.permissions.delete-sandboxes
-  [_graph _native-group-db-ids])
+  [graph native-group-db-ids]
+  (when (seq native-group-db-ids)
+    ((requiring-resolve 'metabase.data-access.core/check-native-access-without-sandboxes!) graph native-group-db-ids)))
 
 (defn- check-native-access-compatible-with-sandboxes!
   "Native queries bypass sandboxing, so a group can't be granted native access to a database it has a sandbox on.

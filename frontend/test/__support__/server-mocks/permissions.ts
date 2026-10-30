@@ -1,6 +1,7 @@
 import fetchMock from "fetch-mock";
 
 import type {
+  ApplicationPermissionsGraph,
   CollectionPermissionsGraph,
   Database,
   Group,
@@ -48,4 +49,27 @@ export const setupPermissionMembershipEndpoint = (
   memberships: ListUserMembershipsResponse,
 ) => {
   fetchMock.get("path:/api/permissions/membership", memberships);
+};
+
+/**
+ * `GET /api/permissions/application/graph` returns `graph`, and
+ * `PUT /api/permissions/application/graph` returns `updatedGraph`, or fails with
+ * `updateError` when that is given.
+ */
+export const setupApplicationPermissionsGraphEndpoints = ({
+  graph,
+  updatedGraph = { ...graph, revision: graph.revision + 1 },
+  updateError,
+}: {
+  graph: ApplicationPermissionsGraph;
+  updatedGraph?: ApplicationPermissionsGraph;
+  updateError?: { status: number; message: string };
+}) => {
+  fetchMock.get("path:/api/permissions/application/graph", graph);
+  fetchMock.put(
+    "path:/api/permissions/application/graph",
+    updateError
+      ? { status: updateError.status, body: { message: updateError.message } }
+      : updatedGraph,
+  );
 };

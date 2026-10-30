@@ -10,11 +10,13 @@
    [metabase.permissions-rest.schema :as permissions-rest.schema]
    [metabase.permissions.core :as perms]
    [metabase.permissions.db :as permissions.db]
+   [metabase.permissions.schema :as permissions.schema]
    [metabase.premium-features.core :as premium-features :refer [defenterprise]]
    [metabase.request.core :as request]
    [metabase.settings.core :as setting]
    [metabase.util :as u]
    [metabase.util.i18n :refer [tru]]
+   [metabase.util.malli.registry :as mr]
    [metabase.util.malli.schema :as ms]
    [toucan2.core :as t2]))
 
@@ -52,16 +54,17 @@
   (data-perms.graph/api-graph {:group-id group-id}))
 
 (defenterprise upsert-sandboxes!
-  "OSS implementation of `upsert-sandboxes!`. Errors since this is an enterprise feature."
+  "Create or update the row and column security policies (sandboxes) sent with a permissions graph update; returns
+  them as saved."
   metabase-enterprise.sandbox.models.sandbox
-  [_sandboxes]
-  (throw (premium-features/ee-feature-error (tru "Sandboxes"))))
+  [sandboxes]
+  ((requiring-resolve 'metabase.data-access.core/upsert-sandboxes!) sandboxes))
 
 (defenterprise insert-impersonations!
-  "OSS implementation of `insert-impersonations!`. Errors since this is an enterprise feature."
+  "Save the connection impersonation policies sent with a permissions graph update; returns them as saved."
   metabase-enterprise.impersonation.models
-  [_impersonations]
-  (throw (premium-features/ee-feature-error (tru "Connection impersonation"))))
+  [impersonations]
+  ((requiring-resolve 'metabase.data-access.core/insert-impersonations!) impersonations))
 
 ;; TODO (Cam 2025-11-25) please add a response schema to this API endpoint, it makes it easier for our customers to
 ;; use our API + we will need it when we make auto-TypeScript-signature generation happen
@@ -77,10 +80,10 @@
   modifies it before you can submit you revisions, the endpoint will instead make no changes and return a
   409 (Conflict) response. In this case, you should fetch the updated graph and make desired changes to that.
 
-  The optional `sandboxes` key contains a list of sandboxes that should be created or modified in conjunction with
-  this permissions graph update. Since data sandboxing is an Enterprise Edition-only feature, a 402 (Payment Required)
-  response will be returned if this key is present and the server is not running the Enterprise Edition, and/or the
-  `:sandboxes` feature flag is not present.
+  The optional `sandboxes` key contains a list of sandboxes (row and column security policies) that should be created
+  or modified in conjunction with this permissions graph update, and the optional `impersonations` key a list of
+  connection impersonation policies. A 402 (Payment Required) response is returned if a key is present without the
+  `:sandboxes` (respectively `:advanced-permissions`) feature.
 
   If the skip-graph query param is truthy, then the graph will not be returned."
   [_route-params
@@ -112,6 +115,44 @@
                (when-not skip-graph {:groups (:groups (data-perms.graph/api-graph {:group-ids group-ids}))})
                (when sandboxes {:sandboxes sandboxes})
                (when impersonations {:impersonations impersonations}))))))
+
+;;; +----------------------------------------------------------------------------------------------------------------+
+;;; |                                     APPLICATION PERMISSIONS GRAPH ENDPOINTS                                    |
+;;; +----------------------------------------------------------------------------------------------------------------+
+
+(mr/def ::application-graph-update-request
+  "The body of `PUT /api/permissions/application/graph`, with group IDs as JSON object keys."
+  [:map {:closed true}
+   [:revision ms/IntGreaterThanOrEqualToZero]
+   [:force    {:optional true} [:maybe :boolean]]
+   [:groups   [:map-of ::permissions-rest.schema/group-id [:map {:closed true}
+                                                           [:setting      {:optional true} [:enum :yes :no]]
+                                                           [:monitoring   {:optional true} [:enum :yes :no]]
+                                                           [:subscription {:optional true} [:enum :yes :no]]]]]])
+
+(api.macros/defendpoint :get "/application/graph" :- ::permissions.schema/application-permissions-graph
+  "Fetch the application permissions graph: for each group, whether its members can access the admin Settings
+  (`setting`), use the Monitoring tools (`monitoring`), and create dashboard subscriptions and alerts
+  (`subscription`). Requires the `advanced-permissions` feature."
+  []
+  (api/check-superuser)
+  (perms/check-advanced-permissions-enabled :application)
+  (perms/application-permissions-graph))
+
+(api.macros/defendpoint :put "/application/graph" :- ::permissions.schema/application-permissions-graph
+  "Update application permissions by passing a modified graph, based on the one returned by
+  `GET /api/permissions/application/graph`. Groups and permission types left out are not changed. Returns the updated
+  graph.
+
+  Changes are tracked as revisions. If someone else changed the graph since the `revision` you fetched, this returns
+  a 409 (Conflict) unless `force` is true; fetch the graph again and reapply your changes. The Administrators group
+  always holds every application permission, and tenant groups can only be granted `subscription`."
+  [_route-params
+   _query-params
+   new-graph :- ::application-graph-update-request]
+  (api/check-superuser)
+  (perms/check-advanced-permissions-enabled :application)
+  (perms/update-application-permissions-graph! new-graph))
 
 ;;; +----------------------------------------------------------------------------------------------------------------+
 ;;; |                                          PERMISSIONS GROUP ENDPOINTS                                           |

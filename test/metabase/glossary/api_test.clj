@@ -3,6 +3,7 @@
   (:require
    [clojure.set :as set]
    [clojure.test :refer :all]
+   [metabase.permissions.advanced-test-util :as advanced-test-util]
    [metabase.permissions.models.permissions-group :as perms-group]
    [metabase.test :as mt]
    [toucan2.core :as t2]))
@@ -134,7 +135,7 @@
                        (mt/user-http-request analyst-id :put 200 (str "glossary/" gid)
                                              {:term "Analyst" :definition "Edited by analyst"})))
                (is (nil? (mt/user-http-request analyst-id :delete 204 (str "glossary/" gid)))))))
-          (mt/with-premium-features #{}
+          (advanced-test-util/without-advanced-permissions
             (testing "without advanced-permissions the data analyst is refused"
               (is (false? (:can_write (mt/user-http-request analyst-id :get 200 "glossary"))))
               (is (= "You don't have permissions to do that."

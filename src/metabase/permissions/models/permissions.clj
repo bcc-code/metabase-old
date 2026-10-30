@@ -606,8 +606,12 @@
   (grant-permissions! (u/the-id group-or-id) (permissions.path/collection-read-path collection-or-id)))
 
 (defenterprise current-user-has-application-permissions?
-  "Check if `*current-user*` has permissions for a application permissions of type `perm-type`.
-  This is a paid feature so it's `false` for OSS instances."
+  "Whether `*current-user*` holds the application permission `perm-type` (`:setting`, `:monitoring` or
+  `:subscription`), granted to one of their groups. Superusers hold every application permission. Always `false`
+  while the `advanced-permissions` feature is disabled."
   metabase-enterprise.advanced-permissions.common
-  [_instance]
-  false)
+  [perm-type]
+  (boolean
+   (and (premium-features/enable-advanced-permissions?)
+        (or api/*is-superuser?*
+            (set-has-application-permission-of-type? @api/*current-user-permissions-set* perm-type)))))

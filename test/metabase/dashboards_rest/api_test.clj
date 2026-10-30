@@ -6685,6 +6685,8 @@
           (mt/with-no-data-perms-for-all-users!
             (data-perms/set-database-permission! (perms-group/all-users) (mt/id) :perms/view-data :unrestricted)
             (data-perms/set-database-permission! (perms-group/all-users) (mt/id) :perms/create-queries :no)
+            ;; this fork always enforces download permissions (advanced permissions), so grant downloads explicitly
+            (data-perms/set-database-permission! (perms-group/all-users) (mt/id) :perms/download-results :one-million-rows)
             (is (some? (mt/user-real-request :rasta :post 200
                                              (format "%s/csv" (dashboard-card-query-url dashboard-id card-id dashcard-id))
                                              {:request-options {:as :byte-array}}

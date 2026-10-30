@@ -1,10 +1,11 @@
 import { t } from "ttag";
 
 import { CollectUserDataInput } from "metabase/admin/settings/components/widgets/UsageTracking/CollectUserDataInput";
-import { UpsellDevInstances } from "metabase/admin/upsells";
 import { ExternalLink } from "metabase/common/components/ExternalLink";
 import { useHasTokenFeature } from "metabase/common/hooks";
+import { getUserIsAdmin } from "metabase/current-user";
 import { PLUGIN_EMBEDDING_SDK, PLUGIN_SEMANTIC_SEARCH } from "metabase/plugins";
+import { useSelector } from "metabase/redux";
 import { useSetting } from "metabase/settings";
 import {
   AdminSettingInput,
@@ -25,6 +26,8 @@ export function GeneralSettingsPage() {
   const enableAnonymousTracking = !hasHostingFeature;
   const isReactSdkFeatureAvailable = PLUGIN_EMBEDDING_SDK.isEnabled();
   const isHosted = useSetting("is-hosted?");
+  // the site URL builds password reset links, so settings managers can't change it
+  const isAdmin = useSelector(getUserIsAdmin);
 
   return (
     <SettingsPageWrapper title={t`General`}>
@@ -37,9 +40,9 @@ export function GeneralSettingsPage() {
           inputType="text"
         />
 
-        <SiteUrlWidget />
+        {isAdmin && <SiteUrlWidget />}
 
-        <HttpsOnlyWidget />
+        {isAdmin && <HttpsOnlyWidget />}
 
         <PLUGIN_SEMANTIC_SEARCH.SearchSettingsWidget />
 
@@ -98,8 +101,6 @@ export function GeneralSettingsPage() {
           </ExternalLink>
         </SettingsSection>
       )}
-
-      <UpsellDevInstances location="settings-general" />
     </SettingsPageWrapper>
   );
 }

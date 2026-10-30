@@ -9,9 +9,11 @@
    [metabase.config.core :as config]
    [metabase.models.interface :as mi]
    [metabase.notification.test-util :as notification.tu]
+   [metabase.permissions.advanced-test-util :as advanced-test-util]
    [metabase.permissions.core :as perms]
    [metabase.permissions.models.permissions-group :as perms-group]
    [metabase.permissions.util :as perms-util]
+   [metabase.premium-features.core :as premium-features]
    [metabase.session.models.session :as session]
    [metabase.test :as mt]
    [metabase.test.fixtures :as fixtures]
@@ -159,8 +161,8 @@
         (testing "manager of a different group cannot get users from groups they're not a member of"
           (is (= "You don't have permissions to do that."
                  (mt/user-http-request :rasta :get 403 "user" :group_id group-id2))))
-        (if config/ee-available?
-          ;; Group management is an EE feature
+        (if (premium-features/enable-advanced-permissions?)
+          ;; Group management comes with the advanced-permissions feature, which this fork provides
           (do
             (testing "manager can get all users in their group"
               (is (= #{"lucky@metabase.com"
@@ -180,8 +182,8 @@
                           (filter mt/test-user?)
                           (map :email)
                           set)))))
-          ;; In OSS, non-admins have no way to see users, because group management is an EE feature
-          (testing "in OSS, non-admins have no way to get users"
+          ;; Without group management, non-admins have no way to see users
+          (testing "without advanced-permissions, non-admins have no way to get users"
             (is (= "You don't have permissions to do that."
                    (mt/user-http-request :rasta :get 403 "user" :group_id group-id1)))
             (is (= "You don't have permissions to do that."
@@ -669,7 +671,7 @@
                   "Published tables should NOT grant can_create_queries in OSS"))))))))
 
 (deftest ^:parallel get-user-test
-  (mt/with-premium-features #{}
+  (advanced-test-util/without-advanced-permissions
     (testing "GET /api/user/:id"
       (testing "should return a smaller set of fields"
         (let [resp (mt/user-http-request :rasta :get 200 (str "user/" (mt/user->id :rasta)))]
@@ -689,7 +691,7 @@
                (mt/user-http-request :rasta :get 403 (str "user/" (mt/user->id :trashbird)))))))))
 
 (deftest ^:parallel get-user-superuser-fetch-another-user-test
-  (mt/with-premium-features #{}
+  (advanced-test-util/without-advanced-permissions
     (testing "GET /api/user/:id"
       (testing "A superuser should be allowed to fetch another users data"
         (let [resp (mt/user-http-request :crowberto :get 200 (str "user/" (mt/user->id :rasta)))]
@@ -861,7 +863,7 @@
 (deftest create-user-test
   (testing "POST /api/user"
     (testing "Test that we can create a new User"
-      (mt/with-premium-features #{}
+      (advanced-test-util/without-advanced-permissions
         (let [user-name (mt/random-name)
               email (mt/random-email)]
           (mt/with-model-cleanup [:model/User]
@@ -1090,7 +1092,7 @@
 (deftest admin-update-other-user-test
   (testing "PUT /api/user/:id"
     (testing "test that admins can edit other Users\n"
-      (mt/with-premium-features #{}
+      (advanced-test-util/without-advanced-permissions
         (mt/with-temp [:model/User {user-id :id} {:first_name "Cam"
                                                   :last_name "Era"
                                                   :email "cam.era@metabase.com"
@@ -1405,7 +1407,7 @@
   (testing "PUT /api/user/:id with is_data_analyst"
     (testing "is refused without the :advanced-permissions feature"
       (mt/with-temp [:model/User {user-id :id} {:email "no-advanced-perms-analyst@metabase.com"}]
-        (mt/with-premium-features #{}
+        (advanced-test-util/without-advanced-permissions
           (is (= (str perms/fail-to-add-data-analyst-msg)
                  (mt/user-http-request :crowberto :put 402 (str "user/" user-id)
                                        {:is_data_analyst true})))
@@ -1418,7 +1420,7 @@
          (mt/with-premium-features #{:advanced-permissions}
            (mt/user-http-request :crowberto :put 200 (str "user/" user-id) {:is_data_analyst true})
            (is (user-is-data-analyst? user-id)))
-         (mt/with-premium-features #{}
+         (advanced-test-util/without-advanced-permissions
            (mt/user-http-request :crowberto :put 200 (str "user/" user-id) {:is_data_analyst false})
            (is (not (user-is-data-analyst? user-id)))
            (is (not (t2/select-one-fn :is_data_analyst :model/User :id user-id)))))))))
@@ -1443,7 +1445,7 @@
     (let [email    (format "invited-analyst-%s@metabase.com" (random-uuid))
           group-id (:id (perms-group/data-analyst))]
       (try
-        (mt/with-premium-features #{}
+        (advanced-test-util/without-advanced-permissions
           (is (= (str perms/fail-to-add-data-analyst-msg)
                  (mt/user-http-request :crowberto :post 402 "user"
                                        {:first_name             "Invited"
@@ -1509,7 +1511,7 @@
       (mt/when-ee-evailable
        (mt/with-premium-features #{:advanced-permissions}
          (is (map? (mt/user-http-request analyst-id :get 200 "user")))))
-      (mt/with-premium-features #{}
+      (advanced-test-util/without-advanced-permissions
         (is (= "You don't have permissions to do that."
                (mt/user-http-request analyst-id :get 403 "user")))))))
 
@@ -1527,7 +1529,7 @@
              (is (contains? (matching-ids true) analyst-id))
              (is (not (contains? (matching-ids true) plain-id))))))
         (testing "but not once the feature is gone"
-          (mt/with-premium-features #{}
+          (advanced-test-util/without-advanced-permissions
             (is (not (contains? (matching-ids true) analyst-id)))
             (is (contains? (matching-ids false) analyst-id))
             (testing "while superusers still can"

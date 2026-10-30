@@ -426,12 +426,76 @@
   [feature]
   ((requiring-resolve 'metabase.premium-features.core/has-feature?) feature))
 
+(defn- current-user-has-settings-application-permission?
+  []
+  ;; The permissions module, which owns application permissions, depends on this one, so this checks the path itself.
+  ;; As everywhere else, a permissions path grants every path it is a prefix of (so the admin group's `/` grants it too).
+  ;; Without a user there is nothing to grant, and the permissions-set delay can't be realized.
+  (boolean (and api/*current-user-id*
+                (some #(str/starts-with? "/application/setting/" %)
+                      @api/*current-user-permissions-set*))))
+
 (defenterprise has-advanced-setting-access?
-  "If `advanced-permissions` is enabled, check if current user has permissions to edit `setting`.
-  Return `false` for all non-admins when `advanced-permissions` is disabled. Return `true` for all admins."
+  "Whether the current user may read and write the settings that settings managers can manage. Always `true` for
+  admins. Other users need the `advanced-permissions` feature and the Settings application permission, granted to one
+  of their groups."
   metabase-enterprise.advanced-permissions.common
   []
-  (boolean api/*is-superuser?*))
+  (boolean
+   (or api/*is-superuser?*
+       (and ((requiring-resolve 'metabase.premium-features.core/enable-advanced-permissions?))
+            (current-user-has-settings-application-permission?)))))
+
+(def ^:private admin-only-setting-name-prefixes
+  ["api-key"
+   "csp-"
+   "custom-viz"
+   "custom-visualization"
+   "email-smtp-"
+   "embedding-"
+   "enable-embedding"
+   "google-auth-"
+   "jwt-"
+   "ldap-"
+   "llm-"
+   "mcp-"
+   "metabot-"
+   "mfa-"
+   "oidc-"
+   "password-"
+   "remote-sync-"
+   "saml-"
+   "scim-"
+   "session-"
+   "slack-connect-"
+   "sso-"])
+
+(def ^:private admin-only-setting-names
+  #{"agent-api-enabled?"
+    "allowed-iframe-hosts"
+    "disable-cors-on-localhost"
+    "enable-password-login"
+    "redirect-all-requests-to-https"
+    "site-url"
+    "smtp-override-enabled"})
+
+(defn admin-only-setting?
+  "Whether `setting-definition-or-name` stays admin-only even for settings managers, whatever its visibility.
+
+  These are the settings that decide who can sign in or what code runs, so letting a settings manager change them
+  would let them give themselves more access:
+  - authentication, SSO, user provisioning, MFA, passwords and sessions;
+  - API keys, MCP and the agent API, which let outside clients act as users;
+  - AI providers and Metabot (API keys, endpoints, system prompts), which decide where query data is sent and how the
+    assistant behaves;
+  - the site URL and the SMTP server, which password reset links are built with and sent through;
+  - HTTPS redirects, CORS, embedding origins and secrets, CSP and iframe hosts, custom visualizations and Git sync,
+    which decide what code and content the instance and its users' browsers run."
+  [setting-definition-or-name]
+  (let [s-name (setting-name setting-definition-or-name)]
+    (boolean
+     (or (contains? admin-only-setting-names s-name)
+         (some #(str/starts-with? s-name %) admin-only-setting-name-prefixes)))))
 
 (defn- current-user-can-access-setting?
   "This checks whether the current user should have the ability to read or write the provided setting.
@@ -447,7 +511,8 @@
        ;; Non-admin setting managers can only access settings that are not marked as admin-only
        (not api/*is-superuser?*)
        (has-advanced-setting-access?)
-       (contains? #{:public :authenticated :settings-manager} (:visibility setting)))
+       (contains? #{:public :authenticated :settings-manager} (:visibility setting))
+       (not (admin-only-setting? setting)))
       (and
        ;; Non-admins can only access user-local settings not marked as admin-only
        (allows-user-local-values? setting)
@@ -1631,7 +1696,7 @@
   Settings should be included. We *do not* want to return env var values, since admins are not allowed to modify them.
 
   For settings managers who are not admins, only the subset of settings with the :settings-manager visibility level
-  are returned."
+  are returned, less those [[admin-only-setting?]] keeps for admins."
   [& {:as options}]
   ;; ignore Database-local values, but not User-local values
   (let [writable-visibilities (current-user-writable-visibilities)]
@@ -1639,6 +1704,7 @@
       (user-facing-settings-matching
        (fn [setting]
          (and (contains? writable-visibilities (:visibility setting))
+              (or api/*is-superuser?* (not (admin-only-setting? setting)))
               (not= (:database-local setting) :only)
               (:include-in-list? setting)))
        options))))

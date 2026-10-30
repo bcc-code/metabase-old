@@ -2,9 +2,10 @@
   (:require
    [clojure.string :as str]
    [metabase.api.common :as api]
-   [metabase.config.core :as config]
+   [metabase.permissions.group-manager :as group-manager]
    [metabase.permissions.models.permissions :as perms]
    [metabase.premium-features.core :as premium-features]
+   [metabase.util :as u]
    [metabase.util.i18n :refer [tru]]))
 
 (defn check-has-application-permission
@@ -14,8 +15,7 @@
    (check-has-application-permission perm-type true))
 
   ([perm-type require-superuser?]
-   (if (and (premium-features/enable-advanced-permissions?)
-            config/ee-available?)
+   (if (premium-features/enable-advanced-permissions?)
      (api/check-403 (perms/current-user-has-application-permissions? perm-type))
      (when require-superuser?
        (api/check-superuser)))))
@@ -46,9 +46,7 @@
    (check-manager-of-group group-or-id true))
 
   ([group-or-id require-superuser?]
-   (if-let [f (and (premium-features/enable-advanced-permissions?)
-                   config/ee-available?
-                   (requiring-resolve 'metabase-enterprise.advanced-permissions.common/current-user-is-manager-of-group?))]
-     (api/check-403 (or api/*is-superuser?* (f group-or-id)))
+   (if (premium-features/enable-advanced-permissions?)
+     (api/check-403 (or api/*is-superuser?* (group-manager/current-user-is-manager-of-group? (u/the-id group-or-id))))
      (when require-superuser?
        (api/check-superuser)))))

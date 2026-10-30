@@ -10,6 +10,7 @@
    [metabase.auth-identity.core :as auth-identity]
    [metabase.config.core :as config]
    [metabase.initialization-status.core :as init-status]
+   [metabase.permissions.advanced-test-util :as advanced-test-util]
    [metabase.premium-features.core :as premium-features]
    [metabase.request.core :as request]
    [metabase.server.db :as server.db]
@@ -261,7 +262,7 @@
       ;; looking them up again.
       (let [req {:headers {"x-api-key" "mb_foobar123"}}]
         (testing "No premium features, do not include :is-group-manager?"
-          (mt/with-premium-features #{}
+          (advanced-test-util/without-advanced-permissions
             (is (= (merge req {:api-key-id              api-key-id
                                :api-key-creator-id      (mt/user->id :lucky)
                                :metabase-user-id        (mt/user->id :lucky)
@@ -481,7 +482,7 @@
                                       :key_hashed test-session-key-hashed
                                       :user_id    (:id user)})
           (testing "is `false` if advanced-permisison is disabled"
-            (mt/with-premium-features #{}
+            (advanced-test-util/without-advanced-permissions
               (is (= false
                      (:is-group-manager? (#'mw.session/current-user-info-for-session test-session-key nil))))))
           (testing "is `true` if advanced-permisison is enabled"

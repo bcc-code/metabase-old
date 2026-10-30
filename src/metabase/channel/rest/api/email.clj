@@ -23,7 +23,7 @@
 ;;
 #_{:clj-kondo/ignore [:metabase/validate-defendpoint-has-response-schema]}
 (api.macros/defendpoint :put "/"
-  "Update multiple email Settings. You must be a superuser or have `setting` permission to do this."
+  "Update multiple email Settings. You must be a superuser: password reset links are sent through this SMTP server."
   [_route-params
    _query-params
    settings :- [:map {:closed true}
@@ -32,6 +32,7 @@
                 [:email-smtp-port {:optional true} [:or int? nil?]]
                 [:email-smtp-security {:optional true} [:or string? nil?]]
                 [:email-smtp-username {:optional true} [:or string? nil?]]]]
+  (api/check-superuser)
   (email/check-and-update-settings settings mb-to-smtp-settings (channel.settings/email-smtp-password)))
 
 ;; TODO (Cam 2025-11-25) please add a response schema to this API endpoint, it makes it easier for our customers to
@@ -39,9 +40,9 @@
 ;;
 #_{:clj-kondo/ignore [:metabase/validate-defendpoint-has-response-schema]}
 (api.macros/defendpoint :delete "/"
-  "Clear all email related settings. You must be a superuser or have `setting` permission to do this."
+  "Clear all email related settings. You must be a superuser."
   []
-  (perms/check-has-application-permission :setting)
+  (api/check-superuser)
   (setting/set-many! (zipmap (keys mb-to-smtp-settings) (repeat nil)))
   api/generic-204-no-content)
 

@@ -294,13 +294,18 @@
             :can_create_native_queries can-create-native-queries)))
 
 (defn- maybe-add-advanced-permissions
-  "If `advanced-permissions` is enabled, add to `user` a permissions map."
-  [user]
-  (if-let [with-advanced-permissions
-           (and (premium-features/enable-advanced-permissions?)
-                config/ee-available?
-                (requiring-resolve 'metabase-enterprise.advanced-permissions.common/with-advanced-permissions))]
-    (with-advanced-permissions user)
+  "If `advanced-permissions` is enabled, add the current `user`'s application permissions, whether they can edit the
+  data model or the details of any database, and whether they manage any group to their `:permissions`."
+  [{user-id :id :as user}]
+  (if (premium-features/enable-advanced-permissions?)
+    (update user :permissions assoc
+            :can_access_setting      (perms/current-user-has-application-permissions? :setting)
+            :can_access_subscription (perms/current-user-has-application-permissions? :subscription)
+            :can_access_monitoring   (perms/current-user-has-application-permissions? :monitoring)
+            :can_access_data_model   (perms/user-has-any-perms-of-type? user-id :perms/manage-table-metadata)
+            :can_access_db_details   (perms/user-has-any-perms-of-type? user-id :perms/manage-database)
+            :can_access_transforms   (perms/has-any-transforms-permission? user-id)
+            :is_group_manager        (boolean api/*is-group-manager?*))
     user))
 
 (defn- maybe-add-sso-source

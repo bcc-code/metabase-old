@@ -4,7 +4,6 @@
    [metabase.analytics.core :as analytics]
    [metabase.api.common :as api]
    [metabase.auth-identity.core :as auth-identity]
-   [metabase.config.core :as config]
    [metabase.lib.schema.id :as lib.schema.id]
    [metabase.notification.core :as notification]
    [metabase.permissions.core :as perms]
@@ -47,10 +46,8 @@
     (when (some? is-superuser?)
       (api/checkp (= is-superuser? (contains? (set (map :id new-user-group-memberships)) (u/the-id (perms/admin-group))))
                   "is_superuser" (tru "Value of is_superuser must correspond to presence of Admin group ID in group_ids.")))
-    (if-let [f (and (premium-features/enable-advanced-permissions?)
-                    config/ee-available?
-                    (requiring-resolve 'metabase-enterprise.advanced-permissions.models.permissions.group-manager/set-user-group-memberships!))]
-      (f user-or-id new-user-group-memberships)
+    (if (premium-features/enable-advanced-permissions?)
+      (perms/set-user-group-memberships! user-or-id new-user-group-memberships)
       (maybe-set-user-permissions-groups! user-or-id (map :id new-user-group-memberships)))))
 
 (defn fetch-user

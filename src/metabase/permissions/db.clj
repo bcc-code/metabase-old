@@ -347,6 +347,11 @@
   []
   (t2/select-pks-set :model/PermissionsGroup :is_tenant_group true))
 
+(mu/defn all-group-ids :- [:maybe [:set ms/PositiveInt]]
+  "The IDs of every PermissionsGroup."
+  []
+  (t2/select-pks-set :model/PermissionsGroup))
+
 (mu/defn group-tenant-flags
   "A map of group ID to `:is_tenant_group` for `group-ids`."
   [group-ids :- [:set ms/PositiveInt]]
@@ -454,6 +459,24 @@
   "The PermissionsGroupMemberships of the PermissionsGroup with `group-id`."
   [group-id :- ms/PositiveInt]
   (t2/select :model/PermissionsGroupMembership :group_id group-id))
+
+(mu/defn managed-group-ids :- [:maybe [:set ms/PositiveInt]]
+  "The IDs of the PermissionsGroups in which the User with `user-id` is a group manager, or nil if there are none."
+  [user-id :- ::lib.schema.id/user]
+  (t2/select-fn-set :group_id :model/PermissionsGroupMembership
+                    :user_id          [:auto/param user-id]
+                    :is_group_manager true))
+
+(mu/defn set-user-group-manager!
+  "Set the group manager flag of the membership of the User with `user-id` in the PermissionsGroup with `group-id`.
+  Returns the number of memberships updated."
+  [user-id        :- ::lib.schema.id/user
+   group-id       :- ms/PositiveInt
+   group-manager? :- :boolean]
+  (t2/update! :model/PermissionsGroupMembership
+              :user_id  [:auto/param user-id]
+              :group_id [:auto/param group-id]
+              {:is_group_manager group-manager?}))
 
 (mu/defn existing-membership-pairs :- [:set [:tuple ms/PositiveInt ms/PositiveInt]]
   "The `[user-id group-id]` pairs among `pairs` that already have a PermissionsGroupMembership."

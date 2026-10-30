@@ -5,8 +5,10 @@
    [metabase.models.interface :as mi]
    [metabase.permissions-rest.api-test-util :as perm-test-util]
    [metabase.permissions-rest.data-permissions.graph :as data-perms.graph]
+   [metabase.permissions.advanced-test-util :as advanced-test-util]
    [metabase.permissions.core :as perms]
    [metabase.permissions.models.permissions-group :as perms-group]
+   [metabase.premium-features.core :as premium-features]
    [metabase.test :as mt]
    [metabase.test.fixtures :as fixtures]
    [metabase.util :as u]
@@ -199,12 +201,13 @@
                                 (update-vals results (fn [members]
                                                        (set (map #(select-keys % [:id :is_group_manager]) members))))))]
       (testing "hydrate members only return active users for each group"
-        (is (= {group-id-1 #{{:id user-1-g1}
-                             {:id user-2-g1}}
-                group-id-2 #{{:id user-1-g2}}}
-               (group-id->members))))
+        (advanced-test-util/without-advanced-permissions
+          (is (= {group-id-1 #{{:id user-1-g1}
+                               {:id user-2-g1}}
+                  group-id-2 #{{:id user-1-g2}}}
+                 (group-id->members)))))
       (testing "return is_group_manager for each group if premium features are enabled"
-        (when config/ee-available?
+        (when (premium-features/enable-advanced-permissions?)
           (mt/with-premium-features #{:advanced-permissions}
             (is (= {group-id-1 #{{:id user-1-g1 :is_group_manager true}
                                  {:id user-2-g1 :is_group_manager false}}

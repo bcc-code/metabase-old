@@ -272,15 +272,10 @@
     (when (premium-features/enable-advanced-permissions?)
       ;; key recipients the same way pulse-channel does: user recipients by :id, external recipients by
       ;; :email, so changes to external addresses are part of the diff too
-      (let [recipient-key     (some-fn :id :email)
-            to-add-recipients (difference (set (keep recipient-key (:recipients (email-channel pulse-updates))))
-                                          (set (keep recipient-key (:recipients (email-channel pulse-before-update)))))
-            current-user-has-application-permissions?
-            (and (premium-features/enable-advanced-permissions?)
-                 (resolve 'metabase-enterprise.advanced-permissions.common/current-user-has-application-permissions?))
-            has-subscription-perms?
-            (and current-user-has-application-permissions?
-                 (current-user-has-application-permissions? :subscription))]
+      (let [recipient-key           (some-fn :id :email)
+            to-add-recipients       (difference (set (keep recipient-key (:recipients (email-channel pulse-updates))))
+                                                (set (keep recipient-key (:recipients (email-channel pulse-before-update)))))
+            has-subscription-perms? (perms/current-user-has-application-permissions? :subscription)]
         (api/check (or api/*is-superuser?*
                        has-subscription-perms?
                        (empty? to-add-recipients))

@@ -4,6 +4,7 @@
    [clojure.test :refer :all]
    [metabase.data-studio.api.table :as api.table]
    [metabase.data-studio.db :as data-studio.db]
+   [metabase.permissions.advanced-test-util :as advanced-test-util]
    [metabase.permissions.models.permissions-group :as perms-group]
    [metabase.sync.core :as sync]
    [metabase.test :as mt]
@@ -81,7 +82,7 @@
            (testing "data analyst can get selection info"
              (is (map? (mt/user-http-request analyst-id :post 200 "data-studio/table/selection"
                                              {:table_ids [table-id]}))))))
-        (mt/with-premium-features #{}
+        (advanced-test-util/without-advanced-permissions
           (testing "without advanced-permissions the data analyst is refused"
             (is (= "You don't have permissions to do that."
                    (mt/user-http-request analyst-id :post 403 "data-studio/table/selection"

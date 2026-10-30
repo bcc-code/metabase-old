@@ -63,7 +63,7 @@ export const DataPermissionsHelp = () => {
               <PermissionHelpDescription
                 icon="database"
                 iconColor="feedback-warning"
-                name={t`Impersonated (Pro)`}
+                name={t`Impersonated`}
                 description={t`The group can view data based on the database role you specify with a user attribute (manually or via SSO).`}
               />
               {shouldShowLegacyNoSelfServiceInfo && (
@@ -77,7 +77,7 @@ export const DataPermissionsHelp = () => {
               <PermissionHelpDescription
                 icon="close"
                 iconColor="feedback-negative"
-                name={t`Blocked (Pro)`}
+                name={t`Blocked`}
                 description={t`The group cannot view any data from the data source, even if they have collection access to view questions or dashboards that draw from that data.`}
               />
             </Stack>
@@ -108,13 +108,13 @@ export const DataPermissionsHelp = () => {
               <PermissionHelpDescription
                 icon="permissions_limited"
                 iconColor="core-brand"
-                name={t`Row and column security (Pro)`}
+                name={t`Row and column security`}
                 description={t`Lets you specify row and column-level permissions. Can be set up via user attributes and SSO.`}
               />
               <PermissionHelpDescription
                 icon="close"
                 iconColor="feedback-negative"
-                name={t`Blocked (Pro)`}
+                name={t`Blocked`}
                 description={
                   <>
                     <Text>{t`The group can’t view:`}</Text>
@@ -183,23 +183,23 @@ export const DataPermissionsHelp = () => {
             <Stack gap="1rem" py="1rem">
               <Text>
                 {jt`${(
-                  <strong key="permission">{t`Download results (Pro):`}</strong>
+                  <strong key="permission">{t`Download results:`}</strong>
                 )} The group can download results, up to a maximum number of rows that you set.`}
               </Text>
               <Text>
                 {jt`${(
-                  <strong key="permission">{t`Manage Data Model (Pro):`}</strong>
+                  <strong key="permission">{t`Manage table metadata:`}</strong>
                 )} The group can edit metadata via the “Table metadata” tab in the Admin settings.`}
               </Text>
               <Text>
                 {jt`${(
-                  <strong key="permission">{t`Manage Database (Pro):`}</strong>
+                  <strong key="permission">{t`Manage database:`}</strong>
                 )} The group can edit database settings for a given database in the "Database" tab of the Admin settings.`}
               </Text>
               {PLUGIN_TRANSFORMS.isEnabled && (
                 <Text>
                   {jt`${(
-                    <strong key="permission">{t`Transforms (Pro):`}</strong>
+                    <strong key="permission">{t`Transforms:`}</strong>
                   )} The group can create, edit, and run Transforms for a given database.`}
                 </Text>
               )}

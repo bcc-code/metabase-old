@@ -6,10 +6,14 @@
   all middleware is combined. See [[handle-audit-app-internal-queries]]
   and [[handle-audit-app-internal-queries-middleware]] for example."
   (:require
-   [metabase.premium-features.core :refer [defenterprise]]
+   [metabase.api.common :as api]
+   [metabase.lib.core :as lib]
+   [metabase.permissions.core :as perms]
+   [metabase.premium-features.core :as premium-features :refer [defenterprise]]
    [metabase.query-processor.error-type :as qp.error-type]
    [metabase.query-processor.schema :as qp.schema]
    [metabase.util.i18n :as i18n]
+   [metabase.util.log :as log]
    [metabase.util.malli :as mu]))
 
 ;;;; Pre-processing middleware
@@ -28,26 +32,25 @@
   restrict the rows returned, based on presence of sandboxes."
   metabase-enterprise.sandbox.query-processor.middleware.sandboxing
   [query]
-  query)
+  ((requiring-resolve 'metabase.data-access.core/apply-sandboxing) query))
 
 (defenterprise apply-impersonation
   "Pre-processing middleware. Adds a key to the query if the user will be impersonated. Currently used solely for cache."
   metabase-enterprise.impersonation.middleware
   [query]
-  query)
+  ((requiring-resolve 'metabase.data-access.core/apply-impersonation) query))
 
 (defenterprise apply-impersonation-postprocessing
   "Post-processing middleware to actually bind what's needed for impersonation"
   metabase-enterprise.impersonation.middleware
-  [query]
-  query)
+  [qp]
+  ((requiring-resolve 'metabase.data-access.core/apply-impersonation-postprocessing) qp))
 
 (defenterprise currently-impersonated?
-  "True when a connection-impersonation role is bound for the current query. Read from the enterprise
-  impersonation dynamic var. OSS: always false."
+  "True when a connection-impersonation role is bound for the current query."
   metabase-enterprise.impersonation.middleware
   []
-  false)
+  ((requiring-resolve 'metabase.data-access.core/currently-impersonated?)))
 
 (defenterprise currently-db-routed?
   "True when DB routing has swapped in a destination DB for the current query. Read from the enterprise
@@ -69,13 +72,47 @@
   (fn [query rff]
     ((apply-impersonation-postprocessing qp) query rff)))
 
+;;; Download permissions. Group download permissions only bind users acting as themselves: public links and static
+;;; embeds run as an admin, and have download settings of their own.
+
+(def ^:private download-contexts
+  #{:csv-download :json-download :xlsx-download
+    :embedded-csv-download :embedded-json-download :embedded-xlsx-download
+    :public-csv-download :public-json-download :public-xlsx-download})
+
+(defn- download-query?
+  [query]
+  (contains? download-contexts (-> query :info :context)))
+
+(defn- current-user-download-level
+  "The current user's download permission level for `query`, preprocessed for them; nil when their downloads aren't
+  restricted: for admins, with no current user, or while the `advanced-permissions` feature is disabled. `:no` when
+  the level can't be worked out."
+  [query]
+  (when (and (premium-features/enable-advanced-permissions?)
+             api/*current-user-id*
+             (not api/*is-superuser?*))
+    (try
+      ;; resolved late: query-permissions preprocesses queries, and preprocessing loads this namespace
+      ((requiring-resolve 'metabase.query-permissions.core/download-perms-level)
+       query api/*current-user-id* :already-preprocessed? true)
+      (catch Throwable e
+        (log/warn e "Error calculating download permissions; denying downloads")
+        :no))))
+
 (defenterprise apply-download-limit
   "Pre-processing middleware to apply row limits to MBQL export queries if the user has `limited` download perms. This
   does not apply to native queries, which are instead limited by the [[limit-download-result-rows]] post-processing
   middleware."
   metabase-enterprise.advanced-permissions.query-processor.middleware.permissions
   [query]
-  query)
+  (if (and (download-query? query)
+           (not (lib/native-stage? query -1))
+           (not (lib/current-page query -1))
+           (= :ten-thousand-rows (current-user-download-level query)))
+    (lib/limit query -1 (min perms/limited-download-row-limit
+                             (or (lib/current-limit query -1) perms/limited-download-row-limit)))
+    query))
 
 ;;;; Execution middleware
 
@@ -94,6 +131,11 @@
   (fn [query rff]
     ((swap-destination-db qp) query rff)))
 
+(def ^:private download-level->api-value
+  {:one-million-rows  :full
+   :ten-thousand-rows :limited
+   :no                :none})
+
 (defenterprise check-download-permissions
   "Middleware for queries that generate downloads, which checks that the user has permissions to download the results
   of the query, and aborts the query or limits the number of results if necessary.
@@ -102,7 +144,23 @@
   the query metadata so that the frontend can determine whether to show the download option on the UI."
   metabase-enterprise.advanced-permissions.query-processor.middleware.permissions
   [qp]
-  qp)
+  (fn [query rff]
+    (let [level (current-user-download-level query)]
+      (cond
+        (nil? level)
+        (qp query rff)
+
+        (not (download-query? query))
+        (qp query (fn [metadata]
+                    (rff (assoc metadata :download_perms (download-level->api-value level)))))
+
+        (= level :no)
+        (throw (ex-info (i18n/tru "You do not have permissions to download the results of this query.")
+                        {:type               qp.error-type/missing-required-permissions
+                         :permissions-error? true}))
+
+        :else
+        (qp query rff)))))
 
 (defn check-download-permissions-middleware
   "Helper middleware wrapper for [[check-download-permissions]] to make sure we do [[defenterprise]] dispatch
@@ -120,14 +178,18 @@
   perms. Mainly useful for native queries, which are not modified by the [[apply-download-limit]] pre-processing
   middleware."
   metabase-enterprise.advanced-permissions.query-processor.middleware.permissions
-  [_query rff]
-  rff)
+  [query rff]
+  (if (and (download-query? query)
+           (= :ten-thousand-rows (current-user-download-level query)))
+    (fn limit-download-result-rows-rff [metadata]
+      ((take perms/limited-download-row-limit) (rff metadata)))
+    rff))
 
 (defenterprise merge-sandboxing-metadata
-  "Post-processing middleware. Merges in column metadata from the original, unsandboxed version of the query."
+  "Post-processing middleware. Marks the results of sandboxed queries and records the sandboxes that applied."
   metabase-enterprise.sandbox.query-processor.middleware.sandboxing
-  [_query rff]
-  rff)
+  [query rff]
+  ((requiring-resolve 'metabase.data-access.core/merge-sandboxing-metadata) query rff))
 
 ;;;; Around middleware
 

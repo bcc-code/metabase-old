@@ -14,6 +14,7 @@ import {
   createMockSettingDefinition,
   createMockSettings,
   createMockTokenFeatures,
+  createMockUser,
 } from "metabase-types/api/mocks";
 
 import { EmailSettingsPage } from "./EmailSettingsPage";
@@ -21,6 +22,7 @@ import { EmailSettingsPage } from "./EmailSettingsPage";
 const setup = async (props: {
   disablePremiumFeatures?: boolean;
   hosted?: boolean;
+  isAdmin?: boolean;
 }) => {
   const emailSettings = {
     "email-from-name": "Metatest",
@@ -53,6 +55,7 @@ const setup = async (props: {
     {
       storeInitialState: {
         settings: createMockSettingsState(settings),
+        currentUser: createMockUser({ is_superuser: props.isAdmin ?? true }),
       },
     },
   );
@@ -77,6 +80,17 @@ describe("EmailSettingsPage", () => {
     ].forEach((text) => {
       expect(screen.getByText(text)).toBeInTheDocument();
     });
+  });
+
+  it("should show the SMTP server settings to admins only", async () => {
+    await setup({});
+    expect(screen.getByText("Self-Hosted SMTP")).toBeInTheDocument();
+  });
+
+  it("should not show the SMTP server settings to settings managers", async () => {
+    await setup({ isAdmin: false });
+    expect(screen.getByText("From Name")).toBeInTheDocument();
+    expect(screen.queryByText("Self-Hosted SMTP")).not.toBeInTheDocument();
   });
 
   it("should not render premium features missing from token", async () => {

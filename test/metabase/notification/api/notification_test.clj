@@ -12,6 +12,7 @@
    [metabase.notification.models :as models.notification]
    [metabase.notification.send :as notification.send]
    [metabase.notification.test-util :as notification.tu]
+   [metabase.permissions.advanced-test-util :as advanced-test-util]
    [metabase.permissions.core :as perms]
    [metabase.test :as mt]
    [metabase.test.fixtures :as fixtures]
@@ -711,7 +712,7 @@
                                                                {:payload_type "notification/card"
                                                                 :creator_id   (mt/user->id :rasta)
                                                                 :payload      {:card_id card-id}}))]
-              (mt/with-premium-features #{}
+              (advanced-test-util/without-advanced-permissions
                 (testing "admin can create"
                   (create-notification! :crowberto 200))
                 (testing "users who can view the card can create"

@@ -7,7 +7,6 @@ import {
   setupPropertiesEndpoints,
   setupSettingsEndpoints,
   setupUpdateSettingEndpoint,
-  setupUserKeyValueEndpoints,
 } from "__support__/server-mocks";
 import { renderWithProviders, screen, waitFor } from "__support__/ui";
 import { UndoListing } from "metabase/common/components/UndoListing";
@@ -19,6 +18,7 @@ import {
   createMockSettingDefinition,
   createMockSettings,
   createMockTokenFeatures,
+  createMockUser,
 } from "metabase-types/api/mocks";
 
 import { GeneralSettingsPage } from "./GeneralSettingsPage";
@@ -49,11 +49,13 @@ const setup = async ({
   hasAuditApp,
   isHosted,
   hasEmbeddingSdk,
+  isAdmin = true,
 }: {
   isCloudPlan?: boolean;
   hasAuditApp?: boolean;
   isHosted?: boolean;
   hasEmbeddingSdk?: boolean;
+  isAdmin?: boolean;
 } = {}) => {
   // Direct control, bypassing hasPremiumFeature/MetabaseSettings singleton
   // timing -- deterministic regardless of what earlier tests in this worker
@@ -89,12 +91,6 @@ const setup = async ({
     ),
   );
 
-  setupUserKeyValueEndpoints({
-    namespace: "user_acknowledgement",
-    key: "upsell-dev_instances",
-    value: true,
-  });
-
   renderWithProviders(
     <Route
       path="*"
@@ -105,7 +101,13 @@ const setup = async ({
         </>
       }
     />,
-    { withRouter: true, initialRoute: "/admin/settings/general" },
+    {
+      storeInitialState: {
+        currentUser: createMockUser({ is_superuser: isAdmin }),
+      },
+      withRouter: true,
+      initialRoute: "/admin/settings/general",
+    },
   );
 
   await screen.findByText("Site name");
@@ -130,12 +132,22 @@ describe("GeneralSettingsPage", () => {
     });
   });
 
-  it("should make only 5 api calls", async () => {
+  it("should not let settings managers change the site URL or the HTTPS redirect", async () => {
+    await setup({ isAdmin: false });
+
+    expect(
+      screen.getByText("Email address for help requests"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Site url")).not.toBeInTheDocument();
+    expect(screen.queryByText("Redirect to HTTPS")).not.toBeInTheDocument();
+  });
+
+  it("should make only 4 api calls", async () => {
     await setup();
 
     await waitFor(() => {
       const calls = fetchMock.callHistory.calls();
-      expect(calls).toHaveLength(5);
+      expect(calls).toHaveLength(4);
     });
     const calls = fetchMock.callHistory.calls();
     const urls = calls.map((call) => call.url);
